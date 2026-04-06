@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: forgenta-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: forgenta
+      POSTGRES_USER: forgenta
+      POSTGRES_PASSWORD: forgenta
+    ports:
+      - "5432:5432"
+    volumes:
+      - forgenta_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgenta"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  forgenta_pgdata:
