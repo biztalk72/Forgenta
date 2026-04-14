@@ -6,7 +6,7 @@ import os
 import ollama
 from typing import AsyncGenerator
 
-MODEL = os.getenv("OLLAMA_MODEL", "qwen3:latest")
+MODEL = os.getenv("OLLAMA_MODEL", "qwen3:0.6b")
 _OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 _client = ollama.Client(host=_OLLAMA_HOST)
 

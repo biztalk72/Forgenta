@@ -1,0 +1,73 @@
+{
+  "family": "forgenta",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "4096",
+  "memory": "16384",
+  "executionRoleArn": "arn:aws:iam::541974874550:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "ollama",
+      "image": "541974874550.dkr.ecr.ap-northeast-2.amazonaws.com/forgenta-ollama:latest",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 11434, "protocol": "tcp" }
+      ],
+      "environment": [],
+      "mountPoints": [
+        {
+          "sourceVolume": "ollama-data",
+          "containerPath": "/root/.ollama"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/forgenta",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ollama"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "ollama list || exit 1"],
+        "interval": 15,
+        "timeout": 5,
+        "retries": 10,
+        "startPeriod": 120
+      }
+    },
+    {
+      "name": "api",
+      "image": "541974874550.dkr.ecr.ap-northeast-2.amazonaws.com/forgenta-api:latest",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 8000, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "OLLAMA_HOST", "value": "http://localhost:11434" },
+        { "name": "OLLAMA_MODEL", "value": "qwen3:0.6b" },
+        { "name": "EMBED_MODEL", "value": "nomic-embed-text" }
+      ],
+      "dependsOn": [
+        { "containerName": "ollama", "condition": "HEALTHY" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/forgenta",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "ollama-data",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-01501d53a49e21753",
+        "rootDirectory": "/forgenta/ollama"
+      }
+    }
+  ]
+}

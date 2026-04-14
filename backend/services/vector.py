@@ -4,7 +4,7 @@ import os
 import chromadb
 import ollama
 
-EMBED_MODEL = os.getenv("EMBED_MODEL", "mxbai-embed-large:latest")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
 _OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 _ollama_client = ollama.Client(host=_OLLAMA_HOST)
 
