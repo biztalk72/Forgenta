@@ -1,0 +1,20 @@
+{
+  "env": {
+    "MY_NAME": "your-name",
+    "MY_ROLE": "developer"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "echo '[Local] Ready for focused coding in' $(pwd)"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "echo '[Local] Session finished at' $(date '+%Y-%m-%d %H:%M:%S')"
+      }
+    ]
+  }
+}
