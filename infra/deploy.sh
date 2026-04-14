@@ -10,15 +10,11 @@ echo "==> Logging in to ECR..."
 aws ecr get-login-password --region $AWS_REGION \
   | docker login --username AWS --password-stdin $ECR_BASE
 
-echo "==> Building images..."
-docker build -t forgenta-api:$TAG -f Dockerfile .
-docker build -t forgenta-ollama:$TAG -f ollama/Dockerfile ollama/
-
-echo "==> Tagging and pushing..."
-docker tag forgenta-api:$TAG     $ECR_BASE/forgenta-api:$TAG
-docker tag forgenta-ollama:$TAG  $ECR_BASE/forgenta-ollama:$TAG
-docker push $ECR_BASE/forgenta-api:$TAG
-docker push $ECR_BASE/forgenta-ollama:$TAG
+echo "==> Building and pushing images (linux/amd64)..."
+docker buildx build --platform linux/amd64 --provenance=false \
+  -t $ECR_BASE/forgenta-api:$TAG --push -f Dockerfile .
+docker buildx build --platform linux/amd64 --provenance=false \
+  -t $ECR_BASE/forgenta-ollama:$TAG --push -f ollama/Dockerfile ollama/
 
 echo "==> Registering task definition..."
 aws ecs register-task-definition \
