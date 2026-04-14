@@ -1,9 +1,12 @@
 """ChromaDB vector search service for Forgenta."""
 
+import os
 import chromadb
 import ollama
 
-EMBED_MODEL = "mxbai-embed-large:latest"
+EMBED_MODEL = os.getenv("EMBED_MODEL", "mxbai-embed-large:latest")
+_OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+_ollama_client = ollama.Client(host=_OLLAMA_HOST)
 
 _client = chromadb.Client()
 _collection = None
@@ -21,7 +24,7 @@ def get_collection():
 
 def embed_text(text: str) -> list[float]:
     """Generate embedding using Ollama."""
-    response = ollama.embed(model=EMBED_MODEL, input=text)
+    response = _ollama_client.embed(model=EMBED_MODEL, input=text)
     return response["embeddings"][0]
 
 

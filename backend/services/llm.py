@@ -2,10 +2,13 @@
 
 import asyncio
 import json
+import os
 import ollama
 from typing import AsyncGenerator
 
-MODEL = "qwen3:latest"
+MODEL = os.getenv("OLLAMA_MODEL", "qwen3:latest")
+_OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+_client = ollama.Client(host=_OLLAMA_HOST)
 
 
 SYSTEM_PROMPT = """당신은 Forgenta 하이브리드 에이전틱 AI 플랫폼의 어시스턴트입니다.
@@ -59,7 +62,7 @@ async def chat_stream(messages: list[dict]) -> AsyncGenerator[str, None]:
     queue: asyncio.Queue[str | None] = asyncio.Queue()
 
     def _run_stream():
-        stream = ollama.chat(model=MODEL, messages=messages, stream=True)
+        stream = _client.chat(model=MODEL, messages=messages, stream=True)
         for chunk in stream:
             content = chunk.get("message", {}).get("content", "")
             if content:
@@ -76,7 +79,7 @@ async def chat_stream(messages: list[dict]) -> AsyncGenerator[str, None]:
 
 def chat_sync(messages: list[dict]) -> str:
     """Synchronous chat for prompt refinement."""
-    response = ollama.chat(model=MODEL, messages=messages)
+    response = _client.chat(model=MODEL, messages=messages)
     return response["message"]["content"]
 
 
