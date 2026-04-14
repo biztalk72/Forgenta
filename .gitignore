@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+dist/
+.next/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ChromaDB local data
+chroma_db/
+*.sqlite3
+
+# AWS
+.aws/
+*.pem
