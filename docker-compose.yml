@@ -23,5 +23,12 @@ services:
       ollama:
         condition: service_healthy
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
 volumes:
   ollama_data:
