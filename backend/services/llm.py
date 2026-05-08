@@ -108,3 +108,12 @@ def refine_prompt(original: str) -> str:
         {"role": "user", "content": REFINE_PROMPT.format(original=original)},
     ]
     return chat_sync(messages)
+
+
+async def refine_prompt_stream(original: str) -> AsyncGenerator[str, None]:
+    """Stream prompt refinement tokens from LLM."""
+    messages = [
+        {"role": "user", "content": REFINE_PROMPT.format(original=original)},
+    ]
+    async for token in chat_stream(messages):
+        yield token
