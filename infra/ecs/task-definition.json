@@ -29,10 +29,10 @@
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "ollama list || exit 1"],
-        "interval": 15,
-        "timeout": 5,
-        "retries": 10,
+        "command": ["CMD-SHELL", "ollama list | grep -q 'nomic-embed-text' || exit 1"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 20,
         "startPeriod": 120
       }
     },
@@ -57,6 +57,28 @@
           "awslogs-group": "/ecs/forgenta",
           "awslogs-region": "ap-northeast-2",
           "awslogs-stream-prefix": "api"
+        }
+      }
+    },
+    {
+      "name": "frontend",
+      "image": "541974874550.dkr.ecr.ap-northeast-2.amazonaws.com/forgenta-frontend:latest",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 80, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "API_HOST", "value": "localhost" }
+      ],
+      "dependsOn": [
+        { "containerName": "api", "condition": "START" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/forgenta",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "frontend"
         }
       }
     }
