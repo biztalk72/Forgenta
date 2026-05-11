@@ -85,12 +85,10 @@ def add_prompt(prompt_id: str, text: str, metadata: dict | None = None):
     """Store a prompt in the prompt collection."""
     col = get_prompt_collection()
     embedding = embed_text(text)
-    col.upsert(
-        ids=[prompt_id],
-        documents=[text],
-        metadatas=[metadata or {}],
-        embeddings=[embedding],
-    )
+    kwargs: dict = dict(ids=[prompt_id], documents=[text], embeddings=[embedding])
+    if metadata:
+        kwargs["metadatas"] = [metadata]
+    col.upsert(**kwargs)
 
 
 def search_similar_prompts(query: str, n_results: int = 5) -> list[dict]:

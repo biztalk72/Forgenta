@@ -6,10 +6,11 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "ollama list | grep -q 'nomic-embed-text'"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
 
   api:
     build: .
