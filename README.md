@@ -1,7 +1,7 @@
 # Forgenta — Hybrid Agentic AI App Platform
 
 > Enterprise AI platform with RAG-powered chat, agent catalog, and prompt management.  
-> Deployed on AWS ECS Fargate with CPU-only Ollama inference.
+> Full-stack React + FastAPI, containerised with Docker Compose, deployed on AWS ECS Fargate.
 
 [한국어 문서 →](./README.ko.md)
 
@@ -12,13 +12,15 @@
 Forgenta is a hybrid agentic AI platform designed for enterprise internal data — manufacturing, HR, and finance. It provides a streaming RAG chat interface, an agent/app catalog, and a prompt refinement engine, all powered by a local LLM via Ollama.
 
 ```
-User → React Frontend
-         ↓
-    FastAPI Backend  ←→  ChromaDB (vector search)
-         ↓
-    Ollama LLM (qwen3:0.6b)  ←→  nomic-embed-text
-         ↓
-    Seed Data (manufacturing / HR / finance JSON)
+Browser → React Frontend (nginx :3000)
+               ↓ /api/*
+          FastAPI Backend (:8000)  ←→  ChromaDB (vector search)
+               ↓
+          Ollama (:11434)
+          ├── qwen3:0.6b        (chat + prompt refinement)
+          └── nomic-embed-text  (embeddings)
+               ↓
+          Seed Data (manufacturing / HR / finance JSON)
 ```
 
 ---
@@ -27,12 +29,12 @@ User → React Frontend
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19, Vite 8, Tailwind CSS 4, React Router 7, Recharts |
+| Frontend | React 19, Vite 8, Tailwind CSS 4, React Router 7, Recharts, lucide-react |
 | Backend | FastAPI 0.115, Python 3.12, Uvicorn |
 | LLM | Ollama (`qwen3:0.6b` — CPU-friendly) |
 | Embeddings | Ollama (`nomic-embed-text`) |
 | Vector DB | ChromaDB 0.6 (in-memory, EFS-backed on AWS) |
-| Container | Docker, Docker Compose |
+| Container | Docker, Docker Compose, nginx:alpine |
 | Cloud | AWS ECS Fargate, ECR, EFS, ALB (ap-northeast-2) |
 
 ---
@@ -46,10 +48,10 @@ Forgenta/
 │   ├── requirements.txt
 │   ├── routers/
 │   │   ├── chat.py           # POST /api/chat/stream, /api/chat/context
-│   │   ├── prompt.py         # POST /api/prompt/refine|similar|save
+│   │   ├── prompt.py         # POST /api/prompt/refine|refine/stream|similar|save
 │   │   └── catalog.py        # GET/POST /api/catalog/agents|apps
 │   ├── services/
-│   │   ├── llm.py            # Ollama chat + prompt refinement
+│   │   ├── llm.py            # Ollama chat + streaming prompt refinement
 │   │   ├── vector.py         # ChromaDB embed + search
 │   │   └── data_seed.py      # JSON seed loader
 │   └── data/
@@ -57,7 +59,24 @@ Forgenta/
 │       ├── hr.json
 │       └── finance.json
 ├── frontend/
-│   └── package.json          # React + Vite + Tailwind (src/ TBD)
+│   ├── Dockerfile            # Multi-stage: node:22 build → nginx:alpine serve
+│   ├── nginx.conf            # SPA fallback + /api/ proxy (buffering off for SSE)
+│   ├── vite.config.js        # Tailwind v4 plugin + dev proxy to :8000
+│   ├── index.html
+│   └── src/
+│       ├── App.jsx           # React Router routes
+│       ├── components/
+│       │   ├── Layout.jsx    # Dark sidebar navigation
+│       │   ├── ChartBlock.jsx # Recharts bar/line/pie renderer
+│       │   └── TableBlock.jsx # Data table renderer
+│       ├── lib/
+│       │   ├── api.js        # Fetch helpers + async generators for SSE streams
+│       │   └── parseResponse.js  # Extract json:chart / json:table blocks
+│       └── pages/
+│           ├── Dashboard.jsx # Health, stats, infra panel, top catalog items
+│           ├── Chat.jsx      # Streaming RAG chat with chart/table rendering
+│           ├── Catalog.jsx   # Agent/app browser with search, filter, clone modal
+│           └── Builder.jsx   # Prompt refinement (streaming), similar search, save
 ├── ollama/
 │   ├── Dockerfile            # Ollama image with lazy model pull
 │   └── entrypoint.sh         # Pull qwen3:0.6b + nomic-embed-text on first start
@@ -66,7 +85,7 @@ Forgenta/
 │   └── ecs/
 │       └── task-definition.json  # Fargate 4vCPU/16GB, EFS volume
 ├── Dockerfile                # FastAPI container (python:3.12-slim)
-└── docker-compose.yml        # Local dev: api + ollama sidecar
+└── docker-compose.yml        # Full stack: ollama + api + frontend
 ```
 
 ---
@@ -75,7 +94,6 @@ Forgenta/
 
 ### Prerequisites
 - Docker Desktop
-- Python 3.12+ (for running without Docker)
 
 ### Run with Docker Compose (recommended)
 
@@ -85,20 +103,42 @@ cd Forgenta
 docker compose up --build
 ```
 
-- API: http://localhost:8000
-- Ollama: http://localhost:11434
-- Swagger docs: http://localhost:8000/docs
+| Service | URL | Notes |
+|---------|-----|-------|
+| Frontend | http://localhost:3000 | React SPA served by nginx |
+| API | http://localhost:8000 | FastAPI + Swagger at `/docs` |
+| Ollama | http://localhost:11434 | LLM inference |
 
-> First start pulls `qwen3:0.6b` (~500MB) and `nomic-embed-text` (~270MB). Subsequent starts use the cached volume.
+> **First start:** pulls `qwen3:0.6b` (~500 MB) and `nomic-embed-text` (~270 MB).  
+> The API waits for both models to be ready before starting (healthcheck guards this).  
+> Subsequent starts use the cached `ollama_data` volume — much faster.
+
+### Run frontend in dev mode (hot reload)
+
+```bash
+cd frontend
+npm install
+npm run dev          # http://localhost:5173, proxies /api → http://localhost:8000
+```
 
 ### Run backend without Docker
 
 ```bash
-cd backend
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 # Requires Ollama running locally: https://ollama.com
 uvicorn backend.main:app --reload
 ```
+
+---
+
+## Frontend Pages
+
+| Page | Route | Description |
+|------|-------|-------------|
+| Dashboard | `/dashboard` | Live health badge, stat cards, infra panel, top catalog items by usage |
+| Chat | `/chat` | Streaming RAG chat — responses auto-render charts and tables |
+| Catalog | `/catalog` | Search + filter agents/apps by type or domain; clone agents |
+| Builder | `/builder` | Stream-refine a prompt with LLM, find similar from vault, save |
 
 ---
 
@@ -122,9 +162,10 @@ Response: { "context": [{ "id", "title", "domain", "distance" }] }
 
 ### Prompt
 ```
-POST /api/prompt/refine    Body: { "text": "..." }
-POST /api/prompt/similar   Body: { "text": "..." }
-POST /api/prompt/save      Body: { "text": "...", "metadata": {} }
+POST /api/prompt/refine          Body: { "text": "..." }  → { original, refined }
+POST /api/prompt/refine/stream   Body: { "text": "..." }  → text/plain stream
+POST /api/prompt/similar         Body: { "text": "..." }  → { similar: [...] }
+POST /api/prompt/save            Body: { "text": "...", "metadata": {} }
 ```
 
 ### Catalog
@@ -135,6 +176,20 @@ GET  /api/catalog/agents/{id}
 GET  /api/catalog/apps/{id}
 POST /api/catalog/agents/{id}/clone   Body: { "name": "...", "description": "..." }
 ```
+
+---
+
+## Docker Compose Services
+
+```yaml
+services:
+  ollama:    # Ollama LLM server — pulls models on first start
+  api:       # FastAPI backend — waits for ollama healthy
+  frontend:  # nginx serving React build — proxies /api/ to api:8000
+```
+
+The `ollama` healthcheck polls for `nomic-embed-text` in the model list, so the `api`
+container only starts after both models are fully downloaded.
 
 ---
 
@@ -211,17 +266,18 @@ aws logs tail /ecs/forgenta --follow --region ap-northeast-2
 
 | Item | Detail |
 |------|--------|
-| Inference speed | CPU-only on Fargate: ~5–15 s/token. Acceptable for internal tooling, not real-time chat. |
+| Inference speed | CPU-only on Fargate: ~5–15 s/token. Acceptable for internal tooling. |
 | ChromaDB | In-memory per task — data resets on task restart. Persist with EFS or migrate to a managed vector DB for production. |
 | Catalog | In-memory only — no database persistence. |
-| Frontend | `src/` not yet implemented (package.json scaffold only). |
 | Auth | No authentication layer. Add Cognito or JWT before exposing publicly. |
 
 ---
 
 ## Roadmap
 
-- [ ] Frontend: implement pages (Chat, Catalog, Builder, Dashboard)
+- [x] Frontend: Dashboard, Chat, Catalog, Builder pages
+- [x] Streaming prompt refinement (`/api/prompt/refine/stream`)
+- [x] Docker Compose full-stack (ollama + api + frontend)
 - [ ] Persist ChromaDB to EFS or migrate to OpenSearch Serverless
 - [ ] Add authentication (AWS Cognito / JWT)
 - [ ] HTTPS: ACM certificate + ALB HTTPS listener
