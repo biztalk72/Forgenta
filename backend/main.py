@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.config import settings
 from backend.routers import chat, prompt, catalog
 from backend.services.data_seed import load_seed_data
 
@@ -17,28 +18,22 @@ START_TIME = time.time()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: load seed data into ChromaDB
     logger.info("🔄 Loading seed data into ChromaDB...")
     count = load_seed_data()
-    logger.info(f"✅ Loaded {count} documents into vector store.")
+    logger.info("✅ Loaded %d documents into vector store.", count)
     yield
 
 
 app = FastAPI(
-    title="Forgenta API",
+    title=settings.app_title,
     description="Hybrid Agentic AI - App Platform",
-    version="0.1.0",
+    version=settings.app_version,
     lifespan=lifespan,
 )
 
-ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,6 +50,6 @@ async def health():
     return {
         "status": "ok",
         "product": "Forgenta",
-        "version": "0.1.0",
+        "version": settings.app_version,
         "uptime_seconds": round(uptime, 2),
     }

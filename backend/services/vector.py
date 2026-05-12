@@ -1,12 +1,14 @@
 """ChromaDB vector search service for Forgenta."""
 
-import os
+import logging
 import chromadb
 import ollama
 
-EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
-_OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-_ollama_client = ollama.Client(host=_OLLAMA_HOST)
+from backend.config import settings
+
+logger = logging.getLogger(__name__)
+
+_ollama_client = ollama.Client(host=settings.ollama_host)
 
 _client = chromadb.Client()
 _collection = None
@@ -24,8 +26,12 @@ def get_collection():
 
 def embed_text(text: str) -> list[float]:
     """Generate embedding using Ollama."""
-    response = _ollama_client.embed(model=EMBED_MODEL, input=text)
-    return response["embeddings"][0]
+    try:
+        response = _ollama_client.embed(model=settings.embed_model, input=text)
+        return response["embeddings"][0]
+    except Exception as exc:
+        logger.error("Embedding error for text (%.50s...): %s", text, exc)
+        raise
 
 
 def add_documents(documents: list[dict]):
@@ -43,6 +49,7 @@ def add_documents(documents: list[dict]):
     ]
     embeddings = [embed_text(t) for t in texts]
     col.upsert(ids=ids, documents=texts, metadatas=metadatas, embeddings=embeddings)
+    logger.info("Indexed %d documents into ChromaDB", len(documents))
 
 
 def search(query: str, n_results: int = 3) -> list[dict]:

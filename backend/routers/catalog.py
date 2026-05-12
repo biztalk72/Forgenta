@@ -1,12 +1,39 @@
 """Catalog router for Agent/App management."""
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+
+from backend.schemas import CloneRequest
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 
-# In-memory catalog store (demo)
-AGENTS = [
+
+# ---------------------------------------------------------------------------
+# CatalogStore — dict-backed in-memory store with O(1) lookups
+# ---------------------------------------------------------------------------
+
+class CatalogStore:
+    """Simple dict-backed catalog for agents and apps."""
+
+    def __init__(self, items: list[dict]):
+        self._store: dict[str, dict] = {item["id"]: item for item in items}
+
+    def list_all(self) -> list[dict]:
+        return list(self._store.values())
+
+    def get(self, item_id: str) -> dict | None:
+        return self._store.get(item_id)
+
+    def add(self, item: dict) -> None:
+        self._store[item["id"]] = item
+
+    @property
+    def count(self) -> int:
+        return len(self._store)
+
+
+# --- Seed data ---
+
+agent_store = CatalogStore([
     {
         "id": "agent-001",
         "name": "품질 불량 분석 에이전트",
@@ -51,9 +78,9 @@ AGENTS = [
         "tags": ["설비", "정비", "가동률"],
         "usage_count": 23,
     },
-]
+])
 
-APPS = [
+app_store = CatalogStore([
     {
         "id": "app-001",
         "name": "제조 대시보드",
@@ -87,47 +114,50 @@ APPS = [
         "tags": ["예산", "집행", "시각화"],
         "usage_count": 89,
     },
-]
+])
 
+
+# --- Endpoints ---
 
 @router.get("/agents")
 async def list_agents():
-    return {"items": AGENTS}
+    return {"items": agent_store.list_all()}
 
 
 @router.get("/apps")
 async def list_apps():
-    return {"items": APPS}
+    return {"items": app_store.list_all()}
 
 
 @router.get("/agents/{agent_id}")
 async def get_agent(agent_id: str):
-    for a in AGENTS:
-        if a["id"] == agent_id:
-            return a
-    raise HTTPException(status_code=404, detail="Agent not found")
+    agent = agent_store.get(agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
 
 
 @router.get("/apps/{app_id}")
 async def get_app(app_id: str):
-    for a in APPS:
-        if a["id"] == app_id:
-            return a
-    raise HTTPException(status_code=404, detail="App not found")
-
-
-class CloneRequest(BaseModel):
-    name: str
-    description: str = ""
+    app = app_store.get(app_id)
+    if app is None:
+        raise HTTPException(status_code=404, detail="App not found")
+    return app
 
 
 @router.post("/agents/{agent_id}/clone")
 async def clone_agent(agent_id: str, req: CloneRequest):
-    for a in AGENTS:
-        if a["id"] == agent_id:
-            new_agent = {**a, "id": f"agent-clone-{len(AGENTS)+1:03d}", "name": req.name, "status": "Draft", "usage_count": 0}
-            if req.description:
-                new_agent["description"] = req.description
-            AGENTS.append(new_agent)
-            return new_agent
-    raise HTTPException(status_code=404, detail="Agent not found")
+    agent = agent_store.get(agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    new_agent = {
+        **agent,
+        "id": f"agent-clone-{agent_store.count + 1:03d}",
+        "name": req.name,
+        "status": "Draft",
+        "usage_count": 0,
+    }
+    if req.description:
+        new_agent["description"] = req.description
+    agent_store.add(new_agent)
+    return new_agent

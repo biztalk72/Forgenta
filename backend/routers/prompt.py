@@ -1,29 +1,27 @@
 """Prompt refinement and comparison router."""
 
+import logging
 import uuid
-from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+
+from backend.schemas import PromptRequest, PromptSaveRequest
 from backend.services.llm import refine_prompt, refine_prompt_stream
 from backend.services.vector import search_similar_prompts, add_prompt
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/prompt", tags=["prompt"])
-
-
-class PromptRequest(BaseModel):
-    text: str
-
-
-class PromptSaveRequest(BaseModel):
-    text: str
-    metadata: dict = {}
 
 
 @router.post("/refine")
 async def refine(req: PromptRequest):
     """Refine a user prompt."""
-    refined = refine_prompt(req.text)
+    try:
+        refined = refine_prompt(req.text)
+    except Exception as exc:
+        logger.error("Prompt refinement failed: %s", exc)
+        raise HTTPException(status_code=503, detail="LLM service unavailable")
     return {"original": req.text, "refined": refined}
 
 

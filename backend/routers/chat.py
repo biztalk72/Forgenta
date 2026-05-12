@@ -1,19 +1,17 @@
 """Chat router with streaming and RAG."""
 
-from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+import logging
 
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+
+from backend.schemas import ChatRequest
 from backend.services.llm import build_prompt_with_context, chat_stream
 from backend.services.vector import search
 from backend.services.data_seed import get_document_by_id
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
-
-
-class ChatRequest(BaseModel):
-    message: str
-    history: list[dict] = []
 
 
 @router.post("/stream")
@@ -50,7 +48,11 @@ async def chat_stream_endpoint(req: ChatRequest):
 @router.post("/context")
 async def get_context(req: ChatRequest):
     """Get RAG context documents for a query (for UI display)."""
-    results = search(req.message, n_results=3)
+    try:
+        results = search(req.message, n_results=3)
+    except Exception as exc:
+        logger.error("Vector search failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Vector search unavailable")
     enriched = []
     for r in results:
         full_doc = get_document_by_id(r["id"])

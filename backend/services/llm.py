@@ -2,13 +2,15 @@
 
 import asyncio
 import json
-import os
+import logging
 import ollama
 from typing import AsyncGenerator
 
-MODEL = os.getenv("OLLAMA_MODEL", "qwen3:0.6b")
-_OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-_client = ollama.Client(host=_OLLAMA_HOST)
+from backend.config import settings
+
+logger = logging.getLogger(__name__)
+
+_client = ollama.Client(host=settings.ollama_host)
 
 
 SYSTEM_PROMPT = """당신은 Forgenta 하이브리드 에이전틱 AI 플랫폼의 어시스턴트입니다.
@@ -58,18 +60,24 @@ def build_prompt_with_context(user_message: str, context_docs: list[dict]) -> li
 
 async def chat_stream(messages: list[dict]) -> AsyncGenerator[str, None]:
     """Stream chat response from Ollama without blocking the event loop."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     queue: asyncio.Queue[str | None] = asyncio.Queue()
 
     def _run_stream():
-        stream = _client.chat(model=MODEL, messages=messages, stream=True)
-        for chunk in stream:
-            content = chunk.get("message", {}).get("content", "")
-            if content:
-                loop.call_soon_threadsafe(queue.put_nowait, content)
-        loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
+        try:
+            stream = _client.chat(
+                model=settings.ollama_model, messages=messages, stream=True,
+            )
+            for chunk in stream:
+                content = chunk.get("message", {}).get("content", "")
+                if content:
+                    loop.call_soon_threadsafe(queue.put_nowait, content)
+        except Exception as exc:
+            logger.error("Ollama streaming error: %s", exc)
+        finally:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
 
-    asyncio.get_event_loop().run_in_executor(None, _run_stream)
+    loop.run_in_executor(None, _run_stream)
     while True:
         token = await queue.get()
         if token is None:
@@ -79,8 +87,12 @@ async def chat_stream(messages: list[dict]) -> AsyncGenerator[str, None]:
 
 def chat_sync(messages: list[dict]) -> str:
     """Synchronous chat for prompt refinement."""
-    response = _client.chat(model=MODEL, messages=messages)
-    return response["message"]["content"]
+    try:
+        response = _client.chat(model=settings.ollama_model, messages=messages)
+        return response["message"]["content"]
+    except Exception as exc:
+        logger.error("Ollama chat_sync error: %s", exc)
+        raise
 
 
 REFINE_PROMPT = """당신은 프롬프트 엔지니어입니다. 사용자의 자유 입력을 분석하여 구조화된 프롬프트로 정제하세요.
