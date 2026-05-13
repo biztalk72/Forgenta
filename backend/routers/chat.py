@@ -2,10 +2,12 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+from backend.dependencies import get_current_user
 from backend.schemas import ChatRequest
+from backend.services.guardrail import check_input, filter_output
 from backend.services.llm import build_prompt_with_context, chat_stream
 from backend.services.vector import search
 from backend.services.data_seed import get_document_by_id
@@ -15,8 +17,15 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 @router.post("/stream")
-async def chat_stream_endpoint(req: ChatRequest):
+async def chat_stream_endpoint(req: ChatRequest, request: Request):
     """Stream chat response with RAG context."""
+    ip = request.client.host if request.client else "unknown"
+    allowed, reason = check_input(req.message, None, ip)
+    if not allowed:
+        code = 429 if reason == "rate_limit" else 400
+        detail = "Too many requests" if reason == "rate_limit" else "Request blocked by content policy"
+        raise HTTPException(status_code=code, detail=detail)
+
     # Search relevant documents
     search_results = search(req.message, n_results=3)
 
@@ -46,8 +55,14 @@ async def chat_stream_endpoint(req: ChatRequest):
 
 
 @router.post("/context")
-async def get_context(req: ChatRequest):
+async def get_context(req: ChatRequest, request: Request):
     """Get RAG context documents for a query (for UI display)."""
+    ip = request.client.host if request.client else "unknown"
+    allowed, reason = check_input(req.message, None, ip)
+    if not allowed:
+        code = 429 if reason == "rate_limit" else 400
+        detail = "Too many requests" if reason == "rate_limit" else "Request blocked by content policy"
+        raise HTTPException(status_code=code, detail=detail)
     try:
         results = search(req.message, n_results=3)
     except Exception as exc:

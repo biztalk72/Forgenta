@@ -48,6 +48,11 @@ export async function fetchHealth() {
   return r.json();
 }
 
+export async function fetchGuardrailStats() {
+  const r = await fetch(`${BASE}/guardrail/stats`, { headers: authHeader() });
+  return r.json();
+}
+
 export async function fetchAgents() {
   const r = await fetch(`${BASE}/catalog/agents`, { headers: authHeader() });
   const d = await r.json();

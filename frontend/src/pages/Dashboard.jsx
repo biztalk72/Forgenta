@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Activity, Bot, AppWindow, Zap, Cpu, Database, TrendingUp, Users } from "lucide-react";
-import { fetchHealth, fetchAgents, fetchApps } from "../lib/api";
+import { Activity, Bot, AppWindow, Cpu, Database, TrendingUp, Users, ShieldCheck, ShieldOff, Gauge, Eye } from "lucide-react";
+import { fetchHealth, fetchAgents, fetchApps, fetchGuardrailStats } from "../lib/api";
 
 function StatCard({ icon: Icon, label, value, sub, accent }) {
   return (
@@ -45,14 +45,16 @@ export default function Dashboard() {
   const [health, setHealth] = useState(null);
   const [agents, setAgents] = useState([]);
   const [apps, setApps] = useState([]);
+  const [guardrail, setGuardrail] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.allSettled([fetchHealth(), fetchAgents(), fetchApps()]).then(
-      ([h, a, ap]) => {
+    Promise.allSettled([fetchHealth(), fetchAgents(), fetchApps(), fetchGuardrailStats()]).then(
+      ([h, a, ap, g]) => {
         setHealth(h.status === "fulfilled" ? h.value : null);
         setAgents(a.status === "fulfilled" ? a.value : []);
         setApps(ap.status === "fulfilled" ? ap.value : []);
+        setGuardrail(g.status === "fulfilled" ? g.value : null);
         setLoading(false);
       }
     );
@@ -95,8 +97,8 @@ export default function Dashboard() {
           </h2>
           <ul className="space-y-2.5 text-sm">
             {[
-              ["LLM", "Ollama · qwen3:0.6b"],
-              ["Embeddings", "nomic-embed-text"],
+              ["LLM", "IBM Granite 4.1 · 8B"],
+              ["Embeddings", "Granite 4.1 (ibm)"],
               ["Vector DB", "ChromaDB (in-memory)"],
               ["Backend", "FastAPI 0.115 · Python 3.12"],
               ["Frontend", "React 19 · Vite 8 · Tailwind 4"],
@@ -139,6 +141,35 @@ export default function Dashboard() {
             </ul>
           )}
         </div>
+      </div>
+
+      {/* Guardrail panel */}
+      <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h2 className="text-sm font-medium text-gray-300 mb-4 flex items-center gap-2">
+          <ShieldCheck size={14} className="text-emerald-500" /> Guardrail
+        </h2>
+        {guardrail ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { icon: Gauge,      label: "Total Requests",  value: guardrail.total_requests,  accent: "bg-indigo-900/40 text-indigo-400" },
+              { icon: ShieldOff,  label: "Blocked Inputs",  value: guardrail.blocked_input,   accent: "bg-red-900/40 text-red-400" },
+              { icon: Activity,   label: "Rate Limited",    value: guardrail.rate_limited,    accent: "bg-amber-900/40 text-amber-400" },
+              { icon: Eye,        label: "PII Redactions",  value: guardrail.pii_redactions,  accent: "bg-violet-900/40 text-violet-400" },
+            ].map(({ icon: Icon, label, value, accent }) => (
+              <div key={label} className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg ${accent} flex-shrink-0`}>
+                  <Icon size={15} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">{label}</p>
+                  <p className="text-xl font-semibold mt-0.5">{value ?? 0}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-600">No guardrail data available</p>
+        )}
       </div>
 
       {/* Agents grid */}
