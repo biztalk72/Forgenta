@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Activity, Bot, AppWindow, Cpu, Database, TrendingUp, Users, ShieldCheck, ShieldOff, Gauge, Eye } from "lucide-react";
-import { fetchHealth, fetchAgents, fetchApps, fetchGuardrailStats } from "../lib/api";
+import { Link } from "react-router-dom";
+import { Activity, Bot, AppWindow, Cpu, Database, TrendingUp, Users, ShieldCheck, ShieldOff, Gauge, Eye, ListTodo, CheckCircle, XCircle, Clock } from "lucide-react";
+import { fetchHealth, fetchAgents, fetchApps, fetchGuardrailStats, fetchTasks } from "../lib/api";
 
 function StatCard({ icon: Icon, label, value, sub, accent }) {
   return (
@@ -46,15 +47,17 @@ export default function Dashboard() {
   const [agents, setAgents] = useState([]);
   const [apps, setApps] = useState([]);
   const [guardrail, setGuardrail] = useState(null);
+  const [recentTasks, setRecentTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.allSettled([fetchHealth(), fetchAgents(), fetchApps(), fetchGuardrailStats()]).then(
-      ([h, a, ap, g]) => {
+    Promise.allSettled([fetchHealth(), fetchAgents(), fetchApps(), fetchGuardrailStats(), fetchTasks(5)]).then(
+      ([h, a, ap, g, t]) => {
         setHealth(h.status === "fulfilled" ? h.value : null);
         setAgents(a.status === "fulfilled" ? a.value : []);
         setApps(ap.status === "fulfilled" ? ap.value : []);
         setGuardrail(g.status === "fulfilled" ? g.value : null);
+        setRecentTasks(t.status === "fulfilled" ? (t.value.tasks ?? []) : []);
         setLoading(false);
       }
     );
@@ -169,6 +172,43 @@ export default function Dashboard() {
           </div>
         ) : (
           <p className="text-xs text-gray-600">No guardrail data available</p>
+        )}
+      </div>
+
+      {/* Recent tasks */}
+      <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+            <ListTodo size={14} className="text-indigo-400" /> Recent Tasks
+          </h2>
+          <Link to="/tasks" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+            View all →
+          </Link>
+        </div>
+        {recentTasks.length === 0 ? (
+          <p className="text-xs text-gray-600">No tasks yet — run an agent from the Tasks page.</p>
+        ) : (
+          <ul className="space-y-2">
+            {recentTasks.map((task) => {
+              const icon =
+                task.status === "done" ? <CheckCircle size={13} className="text-emerald-400" /> :
+                task.status === "failed" ? <XCircle size={13} className="text-red-400" /> :
+                <Clock size={13} className="text-amber-400 animate-pulse" />;
+              return (
+                <li key={task.id} className="flex items-center gap-3 text-sm">
+                  {icon}
+                  <span className="text-gray-400 truncate flex-1">{task.agent_name}</span>
+                  <span className="text-xs text-gray-600 truncate max-w-xs hidden md:block">{task.input}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                    task.status === "done" ? "bg-emerald-900/40 text-emerald-400" :
+                    task.status === "failed" ? "bg-red-900/40 text-red-400" :
+                    task.status === "running" ? "bg-blue-900/40 text-blue-400" :
+                    "bg-gray-800 text-gray-500"
+                  }`}>{task.status}</span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 

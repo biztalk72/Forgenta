@@ -41,6 +41,78 @@ export async function fetchMe(token) {
   return r.json();
 }
 
+// --- Agent orchestration ---
+
+export async function runAgentTask(agentId, input) {
+  const r = await fetch(`${BASE}/agents/tasks/${agentId}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader() },
+    body: JSON.stringify({ input }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Failed"); }
+  return r.json();
+}
+
+export async function fetchTasks(limit = 50) {
+  const r = await fetch(`${BASE}/agents/tasks?limit=${limit}`, { headers: authHeader() });
+  return r.json();
+}
+
+export async function fetchTask(taskId) {
+  const r = await fetch(`${BASE}/agents/tasks/${taskId}`, { headers: authHeader() });
+  return r.json();
+}
+
+export async function cancelTask(taskId) {
+  const r = await fetch(`${BASE}/agents/tasks/${taskId}`, { method: "DELETE", headers: authHeader() });
+  return r.json();
+}
+
+export async function createPipeline(name, steps) {
+  const r = await fetch(`${BASE}/agents/pipelines`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader() },
+    body: JSON.stringify({ name, steps }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Failed"); }
+  return r.json();
+}
+
+export async function fetchPipelines() {
+  const r = await fetch(`${BASE}/agents/pipelines`, { headers: authHeader() });
+  return r.json();
+}
+
+export async function runPipeline(pipelineId, input) {
+  const r = await fetch(`${BASE}/agents/pipelines/${pipelineId}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader() },
+    body: JSON.stringify({ input }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Failed"); }
+  return r.json();
+}
+
+export async function createSchedule(agentId, agentName, input, cron) {
+  const r = await fetch(`${BASE}/agents/schedules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader() },
+    body: JSON.stringify({ agent_id: agentId, agent_name: agentName, input, cron }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Failed"); }
+  return r.json();
+}
+
+export async function fetchSchedules() {
+  const r = await fetch(`${BASE}/agents/schedules`, { headers: authHeader() });
+  return r.json();
+}
+
+export async function deleteScheduleApi(scheduleId) {
+  const r = await fetch(`${BASE}/agents/schedules/${scheduleId}`, { method: "DELETE", headers: authHeader() });
+  return r.json();
+}
+
 // --- Catalog & Health ---
 
 export async function fetchHealth() {

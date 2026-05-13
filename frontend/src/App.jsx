@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import Catalog from "./pages/Catalog";
 import Builder from "./pages/Builder";
+import Tasks from "./pages/Tasks";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import OAuthCallback from "./pages/OAuthCallback";
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="chat" element={<Chat />} />
           <Route path="catalog" element={<Catalog />} />
           <Route path="builder" element={<Builder />} />
+          <Route path="tasks" element={<Tasks />} />
         </Route>
       </Routes>
     </AuthProvider>

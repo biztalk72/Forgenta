@@ -7,8 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
-from backend.routers import chat, prompt, catalog, auth, guardrail
+from backend.routers import chat, prompt, catalog, auth, guardrail, agents
 from backend.services.data_seed import load_seed_data
+from backend.services import agent_executor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,7 +22,10 @@ async def lifespan(app: FastAPI):
     logger.info("🔄 Loading seed data into ChromaDB...")
     count = load_seed_data()
     logger.info("✅ Loaded %d documents into vector store.", count)
+    await agent_executor.start(num_workers=2)
+    logger.info("✅ Agent executor started.")
     yield
+    agent_executor.stop()
 
 
 app = FastAPI(
@@ -41,6 +45,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(guardrail.router)
+app.include_router(agents.router)
 app.include_router(chat.router)
 app.include_router(prompt.router)
 app.include_router(catalog.router)

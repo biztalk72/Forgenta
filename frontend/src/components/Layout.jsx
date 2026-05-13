@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, BookOpen, Wand2, LogOut } from "lucide-react";
+import { LayoutDashboard, MessageSquare, BookOpen, Wand2, ListTodo, LogOut } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 const nav = [
@@ -7,6 +7,7 @@ const nav = [
   { to: "/chat", icon: MessageSquare, label: "Chat" },
   { to: "/catalog", icon: BookOpen, label: "Catalog" },
   { to: "/builder", icon: Wand2, label: "Builder" },
+  { to: "/tasks", icon: ListTodo, label: "Tasks" },
 ];
 
 export default function Layout() {
