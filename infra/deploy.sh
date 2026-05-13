@@ -6,10 +6,6 @@ AWS_ACCOUNT="541974874550"
 ECR_BASE="${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 TAG="${1:-latest}"
 
-echo "==> Logging in to ECR..."
-aws ecr get-login-password --region $AWS_REGION \
-  | docker login --username AWS --password-stdin $ECR_BASE
-
 echo "==> Building and pushing images (linux/amd64)..."
 docker buildx build --platform linux/amd64 --provenance=false \
   -t $ECR_BASE/forgenta-api:$TAG --push -f Dockerfile .
