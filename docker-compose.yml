@@ -1,28 +1,12 @@
 services:
-  ollama:
-    build: ./ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list | grep -q 'nomic-embed-text'"]
-      interval: 15s
-      timeout: 10s
-      retries: 30
-      start_period: 30s
-
   api:
     build: .
     ports:
       - "8000:8000"
     environment:
-      OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: qwen3:0.6b
-      EMBED_MODEL: nomic-embed-text
-    depends_on:
-      ollama:
-        condition: service_healthy
+      OLLAMA_HOST: http://llm-dev.intuaos.com:11434
+      OLLAMA_MODEL: ibm/granite4.1:8b
+      EMBED_MODEL: ibm/granite4.1:8b
 
   frontend:
     build: ./frontend
@@ -30,6 +14,3 @@ services:
       - "3000:80"
     depends_on:
       - api
-
-volumes:
-  ollama_data:

@@ -14,8 +14,6 @@ echo "==> Building and pushing images (linux/amd64)..."
 docker buildx build --platform linux/amd64 --provenance=false \
   -t $ECR_BASE/forgenta-api:$TAG --push -f Dockerfile .
 docker buildx build --platform linux/amd64 --provenance=false \
-  -t $ECR_BASE/forgenta-ollama:$TAG --push -f ollama/Dockerfile ollama/
-docker buildx build --platform linux/amd64 --provenance=false \
   -t $ECR_BASE/forgenta-frontend:$TAG --push -f frontend/Dockerfile frontend/
 
 echo "==> Registering task definition..."

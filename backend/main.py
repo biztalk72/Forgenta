@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
-from backend.routers import chat, prompt, catalog
+from backend.routers import chat, prompt, catalog, auth
 from backend.services.data_seed import load_seed_data
 
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(prompt.router)
 app.include_router(catalog.router)
