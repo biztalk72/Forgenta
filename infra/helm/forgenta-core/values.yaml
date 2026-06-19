@@ -1,12 +1,26 @@
-# forgenta-core 차트 기본값 (서비스별 Phase에서 활성화)
-namespace: forgenta-core
+# forgenta-core 차트 기본값 - 핵심 서비스 (로컬 k3d, 이미지는 k3d image import로 적재)
+jwtSecret: dev-secret-key-minimum-32-characters-long
+databaseURL: postgres://forgenta:forgenta@postgresql.forgenta-infra.svc.cluster.local:5432/forgenta?sslmode=disable
+ollamaHost: http://host.k3d.internal:11434
+
+identity:
+  enabled: true
+  image: forgenta/identity-svc:latest
+  port: 8001
+
+orchestration:
+  enabled: true
+  image: forgenta/orchestration-svc:latest
+  port: 8002
+  executorModel: ollama/qwen3:8b
+  routerModel: ollama/qwen3:1.7b
 
 apiGateway:
-  enabled: false
-identity:
-  enabled: false
-orchestration:
-  enabled: false
+  enabled: true
+  image: forgenta/api-gateway:latest
+  port: 8000
+
+# 헤드룸 등 후속 서비스는 해당 Phase에서 활성화
 headroomProxy:
   enabled: false
 catalog:

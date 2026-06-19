@@ -70,6 +70,17 @@
 - **계량 메모.** usage는 §7 JSON 로그로만 기록(완료 시 model/tokens/latency). DB UsageEvent 기록은 Phase 7.
 - **게이트웨이.** 스트리밍 위해 ReverseProxy.FlushInterval=-1. /api/orchestration/* JWT 보호.
 
+### 2026-06-19 — 컨테이너화 + k3d 배포 (3개 서비스 in-cluster)
+- **이미지.** Go 2종: 멀티스테이지(golang:1.26 → distroless/static), repo 루트 컨텍스트로 shared 모듈 포함.
+  Python: python:3.12-slim. 모두 linux/arm64. 로컬 레지스트리 없이 `k3d image import` + imagePullPolicy: IfNotPresent.
+- **forgenta-core 배포.** identity-svc/orchestration-svc/api-gateway Deployment+Service. 게이트웨이는 in-namespace
+  DNS(identity-svc:8001, orchestration-svc:8002)로 라우팅. DB는 cross-ns(postgresql.forgenta-infra.svc...),
+  Ollama는 host.k3d.internal:11434.
+- **헬퍼.** `infra/scripts/build-images.sh`, `make images`, `make deploy-core`.
+- **검증.** `kubectl port-forward svc/api-gateway` 경유 로그인→/auth/me→스트리밍 모두 in-cluster 동작 확인.
+  Phase 3/4의 "로컬 실행만" 이연 항목 해소.
+- **시크릿 메모.** JWT_SECRET/DB URL은 아직 values.yaml 평문 → 운영 전 k8s Secret 전환(결정 대기 #3) 유효.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

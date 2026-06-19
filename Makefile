@@ -1,7 +1,7 @@
 # Forgenta 루트 Makefile - 클러스터 라이프사이클과 단계별 빌드 진입점
 SHELL := /bin/bash
 
-.PHONY: help cluster-up cluster-down health models migrate migrate-down
+.PHONY: help cluster-up cluster-down health models migrate migrate-down images deploy-core
 
 help: ## 사용 가능한 타깃 목록
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-14s %s\n", $$1, $$2}'
@@ -23,3 +23,9 @@ migrate: ## DB 마이그레이션 적용 (golang-migrate, in-cluster Job)
 
 migrate-down: ## DB 마이그레이션 1단계 롤백
 	bash infra/scripts/migrate.sh "down 1"
+
+images: ## 핵심 서비스 이미지 빌드 + k3d import
+	bash infra/scripts/build-images.sh
+
+deploy-core: ## forgenta-core 차트 배포 (이미지 import 후 실행)
+	helm upgrade --install forgenta-core infra/helm/forgenta-core -n forgenta-core

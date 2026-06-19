@@ -37,7 +37,7 @@
 - [x] 단위 테스트 (shared/token 라운드트립, gateway/auth 미들웨어)
 - [x] migration 000007: 관리자 dev 비밀번호(bcrypt) 시드
 - [x] verify: 로그인→JWT→`/auth/me`(200) / 무토큰·오답(401) ✅ (로컬 실행 + port-forward DB)
-- [ ] 컨테이너화(Dockerfile) + forgenta-core 배포 → 후속(컨테이너화 단계/Phase 8)
+- [x] 컨테이너화(Dockerfile) + forgenta-core 배포 → 완료(in-cluster verify)
 
 ## Phase 4 — Orchestration + Ollama (Loop 3b) ★
 - [x] LangGraph StateGraph: router → executor (Planner/Critic/Summarizer 노드는 후속 확장)
@@ -46,7 +46,7 @@
 - [x] 폴백 체인 (클라우드 미구성 → 로컬로 폴백, fallback 이벤트 노출)
 - [x] 게이트웨이 프록시(/api/orchestration/*, FlushInterval=-1) + JWT 보호
 - [x] verify: 게이트웨이 경유 스트리밍 + quality:high 폴백 + /v1/run(graph) + 401 ✅
-- [ ] 컨테이너화 + 배포 → 후속. Planner/Critic/Summarizer 노드 → 워크플로우 단계에서
+- [x] 컨테이너화 + 배포 → 완료(in-cluster verify). Planner/Critic/Summarizer 노드는 워크플로우 단계에서
 
 ## Phase 5 — Headroom Proxy (Loop 3c)
 - [ ] SmartCrusher(JSON) / CodeCompressor(AST) / Kompress-base(text)
