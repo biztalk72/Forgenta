@@ -63,9 +63,11 @@
 - [x] forgenta-core 배포(catalog 8003, artifact 8004) + 게이트웨이 서브트리 라우트(/api/catalog,/api/artifact)
 - [x] verify: 게이트웨이 경유 Agent create/list/clone(계보 기록), Artifact 저장→content 라운드트립 ✅
 
-## Phase 7 — Governance & Metering (Loop 3e)
-- [ ] Approval queue / AuditLog / UsageEvent / 크레딧 정책 / MCP 계량
-- [ ] verify: UsageEvent 기록 + 승인 플로우 + 감사 로그
+## Phase 7 — Governance & Metering (Loop 3e)  ✅
+- [x] governance-svc: UsageEvent 수집/집계, 승인 큐(create/list/decide), 감사 로그(트랜잭션 기록)
+- [x] forgenta-core 배포(8005) + 게이트웨이 /api/governance/ 라우트
+- [x] verify: usage summary(events/tokens/tokens_saved), 승인 create→approve→0 pending, audit(requested+approved) ✅
+- [ ] 크레딧 정책 / MCP 계량 → 후속 (현재 usage 집계 + tokens_saved까지)
 
 ## Phase 8 — Integration (Loop 4)
 - [ ] 서비스 간 배선

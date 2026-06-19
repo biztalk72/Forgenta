@@ -15,6 +15,7 @@ docker build --platform $PLATFORM -f services/orchestration-svc/Dockerfile -t fo
 docker build --platform $PLATFORM -f services/headroom-proxy/Dockerfile -t forgenta/headroom-proxy:latest .
 docker build --platform $PLATFORM -f services/catalog-svc/Dockerfile -t forgenta/catalog-svc:latest .
 docker build --platform $PLATFORM -f services/artifact-svc/Dockerfile -t forgenta/artifact-svc:latest .
+docker build --platform $PLATFORM -f services/governance-svc/Dockerfile -t forgenta/governance-svc:latest .
 
 echo "=== import into k3d ==="
 k3d image import \
@@ -24,4 +25,5 @@ k3d image import \
   forgenta/headroom-proxy:latest \
   forgenta/catalog-svc:latest \
   forgenta/artifact-svc:latest \
+  forgenta/governance-svc:latest \
   -c forgenta

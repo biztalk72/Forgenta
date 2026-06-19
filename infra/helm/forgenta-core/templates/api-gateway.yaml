@@ -33,6 +33,8 @@ spec:
               value: "http://catalog-svc:{{ .Values.catalog.port }}"
             - name: ARTIFACT_URL
               value: "http://artifact-svc:{{ .Values.artifact.port }}"
+            - name: GOVERNANCE_URL
+              value: "http://governance-svc:{{ .Values.governance.port }}"
           readinessProbe:
             httpGet:
               path: /health

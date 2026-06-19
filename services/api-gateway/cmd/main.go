@@ -60,6 +60,7 @@ func main() {
 	// Catalog/Artifact: 서브트리 전체를 JWT 보호 후 프록시 (모든 메서드)
 	mux.Handle("/api/catalog/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/catalog", cfg.CatalogURL, log)))
 	mux.Handle("/api/artifact/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/artifact", cfg.ArtifactURL, log)))
+	mux.Handle("/api/governance/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/governance", cfg.GovernanceURL, log)))
 
 	handler := middleware.RateLimit(20, 40, mux)
 

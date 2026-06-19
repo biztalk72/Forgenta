@@ -40,6 +40,7 @@ artifact:
   minioSecretKey: forgenta-secret
   bucket: artifacts
 
-# 후속 서비스는 해당 Phase에서 활성화
 governance:
-  enabled: false
+  enabled: true
+  image: forgenta/governance-svc:latest
+  port: 8005

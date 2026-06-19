@@ -103,6 +103,16 @@
 - **검증.** create→list→clone(Summarizer (copy), clone_lineage 1건)→artifact 저장→content 라운드트립 모두 통과.
 - **현재 forgenta-core: 6개 서비스 in-cluster** (gateway/identity/orchestration/headroom/catalog/artifact).
 
+### 2026-06-19 — Phase 7 완료 (verify 통과). auto-mode(Phase 7까지) 완료 지점
+- **governance-svc.** /v1/usage(ingest)+/v1/usage/summary(events/prompt/completion/tokens_saved 집계),
+  /v1/approvals(create/list/decide) 승인 큐, /v1/audit 감사 로그(승인 트랜잭션에서 기록).
+- **게이트웨이.** /api/governance/ 서브트리 JWT 보호 프록시 + GOVERNANCE_URL env.
+- **검증.** usage 2건→summary(prompt 200/completion 60/saved 200), 승인 create→approve→0 pending,
+  audit(approval.requested + approval.approved) 통과.
+- **크레딧 정책/MCP 계량.** PRD 항목이나 MVP에서는 usage 집계 + tokens_saved까지. 정책 적용은 후속.
+- **현재 forgenta-core: 7개 서비스 전부 in-cluster** (gateway/identity/orchestration/headroom/catalog/artifact/governance).
+- **남은 단계:** Phase 8(통합테스트) → 9(프론트엔드) → 10(관측+E2E). orchestration→headroom 연동은 Phase 8에서.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

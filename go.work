@@ -4,6 +4,7 @@ use (
 	./services/api-gateway
 	./services/artifact-svc
 	./services/catalog-svc
+	./services/governance-svc
 	./services/headroom-proxy
 	./services/identity-svc
 	./services/shared
