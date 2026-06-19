@@ -1,0 +1,17 @@
+# forgenta-core 차트 기본값 (서비스별 Phase에서 활성화)
+namespace: forgenta-core
+
+apiGateway:
+  enabled: false
+identity:
+  enabled: false
+orchestration:
+  enabled: false
+headroomProxy:
+  enabled: false
+catalog:
+  enabled: false
+artifact:
+  enabled: false
+governance:
+  enabled: false

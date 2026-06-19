@@ -1,0 +1,6 @@
+apiVersion: v2
+name: forgenta-infra
+description: Forgenta 데이터 계층 (PostgreSQL+pgvector+TimescaleDB, Redis, Qdrant, MinIO)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

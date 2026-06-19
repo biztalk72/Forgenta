@@ -1,0 +1,9 @@
+# forgenta-obs 차트 기본값 (Phase 10에서 활성화)
+namespace: forgenta-obs
+
+loki:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  enabled: false

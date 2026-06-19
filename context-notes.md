@@ -36,6 +36,17 @@
 5. **DB 확장 가용성.** k3d용 PostgreSQL 이미지에서 pgvector + TimescaleDB를 동시 지원하는
    이미지/빌드 확인 필요.
 
+### 2026-06-19 — Phase 0 완료 (verify 통과)
+- **환경.** 프리플라이트 결과 docker(UP)/k3d v5.9.0/helm **v4.2.0**/kubectl v1.34.1/ollama/python3/node 존재.
+  **Go 미설치** — Phase 3(Identity/Gateway) 시작 전 `brew install go` 필요. Phase 0~2는 영향 없음.
+- **클러스터.** `k3d cluster create`로 server1+agent2 기동, k3s **v1.35.5+k3s1**. 4개 네임스페이스 Active.
+  cluster.yaml에 k3s 이미지 핀 생략 → k3d 기본 이미지 사용(견고성 우선).
+- **Helm 차트.** 3종 스캐폴드(values 전부 enabled:false) lint 통과. Phase별로 컴포넌트 활성화 예정.
+- **이연(defer) 결정.** ① 공통 라이브러리(헬스/로그/오류) 코드는 소비 서비스가 생기는 Phase 3/4로 이연
+  (현재 작성 시 speculative). ② Go/Python 서비스 Makefile 템플릿도 각 서비스 Phase에서 작성.
+- **`.env.example` 가드.** Write/Bash 모두 `.env*` 시크릿 가드로 차단됨. 내용은 PLAN/세션에 확정되어 있으나
+  **사용자가 직접 생성**해야 함(플레이스홀더만 포함, 실제 키 없음). CLAUDE.md §5와 동일.
+
 ## 메모 (Notes)
 
 - PRD v2는 §1~§3(제품정의/아키텍처/LLM전략)까지만 작성됨. ERD·와이어프레임·API 명세 등 v1.x 상세 문서는

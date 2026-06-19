@@ -5,13 +5,15 @@
 상태 범례: `[ ]` 미착수 · `[~]` 진행중 · `[x]` 완료(verify 통과)
 
 ## Phase 0 — Foundations
-- [ ] 저장소 트리 생성 (`infra/`, `services/`, `web/`, `db/migrations/`, `docs/adr/`, `docs/runbooks/`)
-- [ ] `.env.example` 작성 (CLAUDE.md §5 전체 변수)
-- [ ] 루트 `Makefile` + Go/Python 서비스 Makefile 템플릿
-- [ ] `infra/k3d/cluster.yaml`
-- [ ] Helm 스캐폴드 3종 (`forgenta-infra`, `forgenta-core`, `forgenta-obs`)
-- [ ] 공통 라이브러리: 헬스 핸들러(§6), JSON 로거(§7), 오류/폴백 인터페이스(§8)
-- [ ] verify: k3d 클러스터 기동 + 4개 네임스페이스 확인
+- [x] 저장소 트리 생성 (`infra/`, `services/`, `web/`, `db/migrations/`, `docs/adr/`, `docs/runbooks/`)
+- [~] `.env.example` 작성 — 내용 확정. 단, 시크릿 가드로 에이전트가 쓸 수 없음 → 사용자 수동 생성 필요
+- [x] 루트 `Makefile` (cluster-up/down/health/models)
+- [ ] Go/Python 서비스 Makefile 템플릿 → 각 서비스 Phase로 이연 (현재 서비스 없음)
+- [x] `infra/k3d/cluster.yaml` + `namespaces.yaml`
+- [x] `infra/scripts/` (bootstrap/teardown/health-check/pull-models)
+- [x] Helm 스캐폴드 3종 (`forgenta-infra`, `forgenta-core`, `forgenta-obs`) — lint 통과
+- [ ] 공통 라이브러리: 헬스 핸들러(§6), JSON 로거(§7), 오류/폴백 인터페이스(§8) → Phase 3/4로 이연 (소비자 생길 때)
+- [x] verify: k3d 클러스터 기동 + 4개 네임스페이스 Active 확인 ✅
 
 ## Phase 1 — Infra (Loop 1)
 - [ ] `forgenta-infra` 차트: PostgreSQL(pgvector + TimescaleDB)

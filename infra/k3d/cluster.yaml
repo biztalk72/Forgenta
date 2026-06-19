@@ -1,0 +1,21 @@
+# Forgenta 로컬 개발용 k3d 클러스터 정의 (server 1 + agent 2, loadbalancer 포트 매핑)
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: forgenta
+servers: 1
+agents: 2
+ports:
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  - port: 8443:443
+    nodeFilters:
+      - loadbalancer
+options:
+  k3d:
+    wait: true
+    timeout: "120s"
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true

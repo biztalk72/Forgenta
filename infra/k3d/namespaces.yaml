@@ -1,0 +1,28 @@
+# Forgenta k3d 네임스페이스 4종 (PRD v2 §2.2)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgenta-infra
+  labels:
+    app.kubernetes.io/part-of: forgenta
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgenta-core
+  labels:
+    app.kubernetes.io/part-of: forgenta
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgenta-obs
+  labels:
+    app.kubernetes.io/part-of: forgenta
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgenta-ui
+  labels:
+    app.kubernetes.io/part-of: forgenta
