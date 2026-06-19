@@ -38,6 +38,7 @@ class ChatRequest(BaseModel):
     prompt: str = ""              # 단일 입력 (하위 호환)
     messages: list[dict] = []     # 멀티턴 대화 [{role, content}, ...]
     routing: dict = {}
+    agent_id: str = ""            # 선택된 카탈로그 Agent (계량 귀속)
 
 
 def _sse(event: str, data: dict) -> str:
@@ -97,10 +98,11 @@ async def chat_stream(req: ChatRequest, request: Request):
                 continue
         latency_ms = int((time.time() - start) * 1000)
         log("llm_call_complete", model=served, provider=_provider(served),
-            prompt_tokens=prompt_tok, completion_tokens=ntok,
+            agent_id=req.agent_id, prompt_tokens=prompt_tok, completion_tokens=ntok,
             original_tokens=orig_tok, compressed_tokens=comp_tok,
             latency_ms=latency_ms, success=served is not None)
         await integrations.record_usage(cfg, ws, user, {
+            "agent_id": req.agent_id,
             "provider": _provider(served), "model": served or "",
             "prompt_tokens": prompt_tok, "completion_tokens": ntok,
             "original_tokens": orig_tok, "compressed_tokens": comp_tok,

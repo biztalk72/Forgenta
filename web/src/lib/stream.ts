@@ -7,13 +7,14 @@ export interface SseEvent {
 }
 
 export interface ChatTurn {
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
 }
 
 export async function* streamChat(
   messages: ChatTurn[],
   routing: Record<string, unknown>,
+  agentId?: string,
   signal?: AbortSignal,
 ): AsyncGenerator<SseEvent> {
   const resp = await fetch('/api/orchestration/v1/chat/stream', {
@@ -22,7 +23,7 @@ export async function* streamChat(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${getToken() ?? ''}`,
     },
-    body: JSON.stringify({ messages, routing }),
+    body: JSON.stringify({ messages, routing, agent_id: agentId || undefined }),
     signal,
   })
   if (!resp.ok || !resp.body) throw new Error(`stream → ${resp.status}`)

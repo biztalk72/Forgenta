@@ -156,6 +156,14 @@
   제거하고 ChatMessage.tsx(user/assistant 버블 + 투명성 메타) 추가. lib/stream.streamChat(messages, routing)로 시그니처 변경.
 - **검증.** 멀티턴 컨텍스트 회상("42") 확인, web/orchestration 재배포, e2e 7/7(단일 prompt 하위호환), web 빌드+테스트 통과.
 
+### 2026-06-20 — 카탈로그 Agent와 채팅 연동
+- **흐름.** Catalog 각 행에 Chat 버튼 → `/?agent=<id>`. Dashboard가 useSearchParams로 agent 로드(GET catalog),
+  config.system_prompt를 매 요청 system 메시지로 prepend(화면 버블엔 미표시), config.routing을 라우팅 기본값으로 병합.
+- **계량 귀속.** ChatRequest.agent_id 추가 → orchestration이 record_usage/§7 로그에 agent_id 포함 → usage_event.agent_id 채워짐.
+- **카탈로그 생성 확장.** Agent 생성 시 시스템 프롬프트 입력(선택) → config.system_prompt 저장.
+- **검증.** "ALL UPPERCASE" 시스템 프롬프트 Agent 생성→채팅→출력 대문자 확인, usage_event.agent_id 귀속 1건. e2e 회귀 OK 예상(단일 prompt 유지).
+- **메모.** system 메시지는 messages[] role:system으로 전송(ollama 지원). 시스템 프롬프트는 화면 대화 버블에는 넣지 않고 payload에만 prepend.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

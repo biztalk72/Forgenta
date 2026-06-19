@@ -1,10 +1,28 @@
-// 대시보드 - 멀티턴 채팅(STREAM-FIRST). 스크롤 가능한 대화 + 하단 고정 입력 + 라우팅 옵션
+// 대시보드 - 멀티턴 채팅(STREAM-FIRST). 선택된 Agent의 시스템 프롬프트/라우팅 적용 + 자동 스크롤
 import { useEffect, useRef, useState } from 'react'
-import { Box, Button, Checkbox, Group, ScrollArea, Stack, Textarea, Title } from '@mantine/core'
+import { Badge, Box, Button, Checkbox, Group, ScrollArea, Stack, Textarea, Title } from '@mantine/core'
+import { useSearchParams } from 'react-router-dom'
 import { streamChat, type ChatTurn } from '../lib/stream'
+import { apiGet } from '../lib/api'
 import ChatMessage, { type ChatMsg } from '../components/ChatMessage'
 
+interface SelectedAgent {
+  id: string
+  name: string
+  systemPrompt?: string
+  routing?: Record<string, unknown>
+}
+
+interface AgentResponse {
+  id: string
+  name: string
+  config?: { system_prompt?: string; routing?: Record<string, unknown> }
+}
+
 export default function DashboardPage() {
+  const [params] = useSearchParams()
+  const agentId = params.get('agent')
+  const [agent, setAgent] = useState<SelectedAgent | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [prompt, setPrompt] = useState('')
   const [highQuality, setHighQuality] = useState(false)
@@ -12,7 +30,17 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState(false)
   const viewport = useRef<HTMLDivElement>(null)
 
-  // 새 토큰/메시지마다 맨 아래로 스크롤
+  // 선택된 Agent 로드 → 대화 초기화
+  useEffect(() => {
+    setMessages([])
+    if (!agentId) { setAgent(null); return }
+    apiGet<AgentResponse>(`/catalog/v1/agents/${agentId}`)
+      .then((a) =>
+        setAgent({ id: a.id, name: a.name, systemPrompt: a.config?.system_prompt, routing: a.config?.routing }),
+      )
+      .catch(() => setAgent(null))
+  }, [agentId])
+
   useEffect(() => {
     viewport.current?.scrollTo({ top: viewport.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
@@ -23,17 +51,20 @@ export default function DashboardPage() {
     setBusy(true)
     setPrompt('')
 
-    // 히스토리(이번 사용자 입력 포함)를 백엔드로 전송 → 멀티턴 컨텍스트
     const history: ChatMsg[] = [...messages, { role: 'user', content: text }]
     setMessages([...history, { role: 'assistant', content: '', meta: { running: true, chain: [], fallbacks: [] } }])
 
-    const turns: ChatTurn[] = history.map((m) => ({ role: m.role, content: m.content }))
-    const routing: Record<string, unknown> = {}
+    // 시스템 프롬프트(Agent) → 히스토리 순으로 전송 (시스템 메시지는 화면 버블에는 표시하지 않음)
+    const turns: ChatTurn[] = []
+    if (agent?.systemPrompt) turns.push({ role: 'system', content: agent.systemPrompt })
+    turns.push(...history.map((m) => ({ role: m.role, content: m.content })))
+
+    const routing: Record<string, unknown> = { ...(agent?.routing ?? {}) }
     if (highQuality) routing.quality = 'high'
     if (sensitive) routing.sensitive = true
 
     try {
-      for await (const ev of streamChat(turns, routing)) {
+      for await (const ev of streamChat(turns, routing, agent?.id)) {
         setMessages((cur) => apply(cur, ev))
       }
     } catch {
@@ -45,11 +76,26 @@ export default function DashboardPage() {
 
   return (
     <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 90px)' }}>
-      <Title order={3} mb="sm">Dashboard</Title>
+      <Group justify="space-between" mb="sm">
+        <Title order={3}>Dashboard</Title>
+        {agent && (
+          <Group gap="xs">
+            <Badge size="lg" variant="light" color="grape">Agent: {agent.name}</Badge>
+            <Button size="xs" variant="subtle" component="a" href="/">일반 채팅</Button>
+          </Group>
+        )}
+      </Group>
       <ScrollArea flex={1} viewportRef={viewport} type="auto">
         <Stack gap="sm" pr="md">
           {messages.length === 0 && (
-            <ChatMessage msg={{ role: 'assistant', content: '무엇이든 물어보세요. 대화는 멀티턴으로 이어집니다.' }} />
+            <ChatMessage
+              msg={{
+                role: 'assistant',
+                content: agent
+                  ? `${agent.name}와 대화를 시작합니다.${agent.systemPrompt ? ' (시스템 프롬프트 적용됨)' : ''}`
+                  : '무엇이든 물어보세요. 대화는 멀티턴으로 이어집니다.',
+              }}
+            />
           )}
           {messages.map((m, i) => <ChatMessage key={i} msg={m} />)}
         </Stack>
