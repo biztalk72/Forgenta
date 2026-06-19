@@ -24,10 +24,11 @@
 - [x] verify: 4개 Pod Running/Ready + readiness probe 통과 ✅
 
 ## Phase 2 — Database (Loop 2)
-- [ ] 코어 스키마 마이그레이션 (workspace/user/role/agent/app/prompt_template)
-- [ ] artifact / usage_event(hypertable) / audit_log / approval / clone_lineage
-- [ ] 시드 데이터
-- [ ] verify: 테이블 존재 + 시드 확인
+- [x] 코어 스키마 마이그레이션 (workspace/users/role/workspace_member/agent/app/prompt_template)
+- [x] artifact / usage_event(hypertable) / audit_log / approval / clone_lineage
+- [x] 시드 데이터 (role 4 + default workspace + admin + owner 멤버십)
+- [x] golang-migrate in-cluster Job 러너 (`infra/scripts/migrate.sh`, make migrate)
+- [x] verify: 13 테이블 + usage_event 하이퍼테이블 + version 6 clean + 시드 확인 ✅
 
 ## Phase 3 — Identity + API Gateway (Loop 3a)
 - [ ] Identity-Svc: OIDC/JWT, RBAC, 워크스페이스 컨텍스트

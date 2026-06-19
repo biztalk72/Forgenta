@@ -32,6 +32,18 @@
 - **결과.** 4개 Pod(postgresql-0/redis/qdrant/minio) Running/Ready, readiness probe 통과.
 - **보안 메모.** DB/MinIO 자격증명을 values.yaml 평문으로 둠(로컬 dev). 운영 전 k8s Secret 전환 필요(결정 대기 #3).
 
+### 2026-06-19 — Phase 2 완료 (verify 통과)
+- **스키마 근거.** PRD v2 서비스 맵에서 최소 스키마 도출(아카이브 v1 ERD 미사용). 6개 마이그레이션:
+  init_extensions / core_identity / catalog / artifact / governance_metering / seed.
+- **테이블 13종.** workspace, users, role, workspace_member, agent, app, prompt_template,
+  clone_lineage, artifact, approval, audit_log, usage_event(+schema_migrations).
+- **하이퍼테이블.** `usage_event`를 `create_hypertable(...,'time')` 레거시 시그니처로 변환(2.27에서 동작).
+  FK 생략(인제스트 성능), PK=(time,id).
+- **마이그레이션 실행 방식.** 로컬 migrate CLI 대신 in-cluster Job(`migrate/migrate` 이미지 + ConfigMap 마운트).
+  CLAUDE.md Loop 2 스니펫은 볼륨 마운트가 빠져 있어 `infra/scripts/migrate.sh`로 보완.
+- **시드 사용자.** 실제 개인 이메일 대신 `admin@forgenta.local` 사용(커밋 데이터에 PII 미포함).
+- **Go 설치 완료.** `brew install go` → go1.26.4 (/opt/homebrew/bin). Phase 3 차단 해제.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면
