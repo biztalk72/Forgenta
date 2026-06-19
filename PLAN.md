@@ -116,3 +116,62 @@ React + Vite 대시보드. PRD v2 5대 원칙 반영.
 
 `context-notes.md`의 "결정 대기" 섹션에서 추적한다. 핵심: 수직 슬라이스 범위 확정,
 Ollama 모델 실제 풀 대상(RAM 제약), 시크릿 관리 방식, Helm 차트 분리 단위.
+
+---
+
+## 5. Forgenta v3 플랜 (Agentic Operations — Workflow Fabric)
+> PRD v3(`docs/prd/Forgenta PRD v3.md`)를 단일 진실 소스로 하는 v3 확장 플랜. Warp 플랜
+> `plan_id e7a37d0d-68af-42b1-9434-8576305b7a99`를 markdown으로 materialize한 것. v2와 동일하게
+> Loop Harness(WRITE→BUILD→TEST→VERIFY) + verify 게이트를 따른다.
+
+### 5.0 무엇을, 왜
+v2(단발성 에이전트)를 확장해 **자연어로 작성 → 검토/승인 → 여러 에이전트가 공유 컨텍스트로 핸드오프하며
+종단 실행**되는 다단계 워크플로우를 추가한다. 1차 목표는 PRD v3 §13의 MVP 슬라이스(Phase 11~14)다.
+
+### 5.1 Loop 매핑
+v3 단계는 CLAUDE.md §3 **Loop 7**(워크플로우 수직 슬라이스)에 매핑되며, 내부적으로
+Loop 2(DB)/Loop 3(서비스)/Loop 4(통합)/Loop 5(프론트)/Loop 6(E2E)를 재사용한다.
+
+### Phase 11 — 데이터 파운데이션 (Loop 2 확장)
+- `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow`, `workflow_run`, `workflow_step_run` 3개 테이블.
+- `workflow`(workspace FK/name/description/spec JSONB/source/status/version/created_by/ts),
+  `workflow_run`(workflow FK/workspace_id/status/trigger/context JSONB/summary/started_at/finished_at),
+  `workflow_step_run`(run_id/step_seq/kind/agent_id/status/input JSONB/output_artifact_id/tokens/latency/error/approval_id).
+- **verify:** `make migrate` 후 신규 3개 테이블 + migration version 8 clean.
+
+### Phase 12 — workflow-svc + Compiler (Loop 3 확장)
+- `services/workflow-svc`(Go, catalog-svc 패턴, 포트 8006): workflow/run CRUD + clone(clone_lineage `entity_type='workflow'`)
+  + 오케스트레이션용 내부 write API(`POST /v1/runs`, `PATCH /v1/runs/{id}`, `POST /v1/runs/{id}/steps`, `PATCH /v1/steps/{id}`).
+- 게이트웨이 `/api/workflow/` 서브트리 JWT 프록시 + `WORKFLOW_URL`. `go.work`/Helm(`workflow.*`, port 8006)/`workflow-svc.yaml`/`build-images.sh` 배선.
+- orchestration `app/compiler.py`: NL 설명 → `workflow.spec` JSON, SSE `plan`/`step`. `app/main.py`에 `POST /v1/workflows/compile`.
+- **verify:** workflow-svc build/vet, 게이트웨이 경유 workflow CRUD + clone 계보, compile SSE가 steps≥2 유효 spec 반환.
+
+### Phase 13 — Workflow Runtime (Loop 3/4)
+- orchestration `app/runtime.py`: spec steps 실행, 단계별 기존 `ModelRouter`+`providers.stream` 재사용.
+  `workflow_run.context`(blackboard) 유지 + 단계 간 handoff, 누적 컨텍스트는 `integrations.compress`로 압축.
+- `app/main.py`에 `POST /v1/workflows/{id}/run`(SSE: meta/plan/step_start/token/handoff/step_done/fallback/done) + `POST /v1/runs/{id}/cancel`.
+  단계 종료마다 workflow-svc step write + governance usage 기록.
+- **verify:** 2단계 run → step_run 2건 + context handoff + done 이벤트.
+
+### Phase 14 — 단계 승인 HITL (Loop 3e/4)
+- governance `approval` 재사용: `resource_type='workflow_step_run'`, `resource_id=step_run_id`. 감사 로그에 workflow/run/step 컨텍스트.
+- `requires_approval=true` 단계는 step_run을 `awaiting_approval`로 저장 + approval 생성 후 정지. orchestration `POST /v1/runs/{id}/resume`로 재개.
+- 프론트(`web/src`): `/workflows`(검색→설명→compile→검토/저장), `/runs`(타임라인·live SSE·approve/reject/resume). `lib/stream.streamCompile`/`streamRun`. **UI는 `DESIGN.md` 준수**(Mantine 재사용, light/dark·semantic token, 반응형 375/768/1024/1440, 모션 150~320ms, 접근성 floor; CLAUDE.md §3.5).
+- **verify:** approval 생성/정지 → approve 후 resume 완료, reject 후 halt. integration/e2e에 워크플로우 플로우 추가 + 기존 회귀 유지.
+
+### Phase 15~17 — 후속 증분 (MVP 이후)
+- Phase 15 — Connectors + 외부 산출: `connector` 테이블 + 커넥터(`gworkspace`/`obsidian`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프. Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·Obsidian 노트·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→Obsidian→메일→Playwright MCP(도메인 allowlist+격리). 상세: PRD v3 §13 Phase 15.
+- Phase 16 — 학습 + 이상탐지: `workflow_memory`+Qdrant RAG 학습 루프, `alert`/`alert_rule` 이상탐지/알림.
+- Phase 17 — 스케줄 + UI: `workflow_schedule`+스케줄러, `/connectors` 페이지, Admin 관측/알림/개선지표.
+
+### 5.2 오케스트레이션 (병렬 빌드 전략)
+- 실행 = **local**. **Foundation**(Phase 11 + Phase 12의 계약/스켈레톤: 000008 마이그레이션 + workflow-svc 스켈레톤
+  + gateway 라우트 + go.work/Helm/build 자리)을 오케스트레이터가 순차 완료.
+- 이후 **4개 자식 에이전트 병렬**(각자 worktree+branch): `wf-svc`(services/workflow-svc·gateway·Helm/build),
+  `orch-ext`(orchestration-svc/app), `gov-ext`(governance-svc), `frontend`(web/src). 단일 PR로 통합.
+- Claude Code 단독 진행 시: Foundation → Phase 12 → 13 → 14 순차(각 verify 게이트 통과 필수).
+
+### 5.3 v3 성공 기준 (Definition of Done)
+- `make migrate`(v8) + workflow-svc build/test + 이미지 빌드 성공.
+- compile SSE 유효 spec, 2단계 run handoff, 단계 승인 resume/halt 동작.
+- `make integration-test`/`make e2e-test`에 워크플로우 플로우 추가 후 통과 + 기존 회귀 유지.

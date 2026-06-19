@@ -202,6 +202,46 @@
 - **★ RESUME 지점.** 오케스트레이션 검토·확정 완료. 현재 **사용자 실행 go 신호 대기**(또는 다른 영역 수정 요청).
   실행 시: ① Foundation부터 실행 → ② `run_agents`로 4개 에이전트 fan-out(`plan_id` e7a37d0d 사용) →
   ③ `make images`/`make deploy-core` + integration/e2e 검증. 플랜 본문은 Warp 플랜(plan_id)에서 조회.
+- **Claude Code 핸드오프(2026-06-20).** v3 플랜을 markdown SSOT로 materialize 완료: `CLAUDE.md` §3 **Loop 7**,
+  `PLAN.md` **§5**(v3 Phase 11~17), `checklist.md` **Phase 11~17**. Claude Code는 CLAUDE.md→PLAN.md→checklist.md→
+  context-notes.md 순으로 읽고 **Loop 7 / Phase 11(000008 마이그레이션)부터** Loop Harness(verify 게이트)로 진행.
+
+### 2026-06-20 — DESIGN.md 도입 + 빌드 배선
+- **DESIGN.md 분석.** UI 디자인 운영 표준(시각적 헌법). 3계층 — PRD(무엇)/CLAUDE.md(어떻게 작업)/DESIGN.md(UI 외형·거동).
+  내용: theme system(light/dark + semantic token 15종), WebGL=enhancement-only, 레이아웃/반응형(375/768/1024/1440)/
+  타이포/모션(150~320ms)/성능 예산, prohibitions, 접근성 floor, Claude Code 실행 순서, 권장 repo layout.
+- **⚠ 스택 충돌 결정.** DESIGN.md는 shadcn/ui+Tailwind+Next 편향. 그러나 본 레포 web = **React+Vite+Mantine 7**(Tailwind/shadcn 없음).
+  **결정: 마이그레이션하지 않고 DESIGN.md 원칙을 Mantine에 매핑**(원칙은 라이브러리 무관, 기존 design system 재사용이 DESIGN.md 우선순위 #2).
+  근거: 동작하는 Mantine 앱을 문서 때문에 재작성하는 건 surgical 원칙 위반. shadcn 편향은 "신규 React/Tailwind 프로젝트 한정"으로 조건부.
+  **✅ 사용자 확정(2026-06-20): Mantine 유지.** shadcn/Tailwind 전환은 비목표(향후 원할 시 별도 마이그레이션 Phase 필요). 결정 종결.
+- **빌드 배선.** ① `CLAUDE.md` §3.5 신설(DESIGN.md 준수 + Mantine 매핑 규칙) + Loop 5 verify에 DESIGN 항목 추가.
+  ② `PRD v3 §11`에 DESIGN.md 준수 명시. ③ `PLAN.md §5` Phase 14 프론트 라인 + Phase 15 커넥터 동기화(v3.2 반영).
+  ④ `checklist.md` Phase 14에 DESIGN.md 준수 체크 추가.
+- **상태.** 문서/플랜만. **코드/빌드 없음.** DESIGN.md는 신규 추적 파일(이번에 커밋). `graphify-out/`은 무관 산출물(커밋 제외).
+
+### 2026-06-20 — PRD v3.1 → v3.2 수정 (Obsidian/Gmail/Outlook + Playwright MCP 커넥터)
+- **추가 커넥터.** ① `obsidian`(볼트 노트 읽기/생성, Local REST API/MCP), ② `gmail`(Google OAuth `gmail.send`),
+  ③ `outlook`(MS Graph `Mail.Send`/`Mail.Read`) — 모두 입력(트리거)+출력(발송) 양방향. ④ `browser` 커넥터를
+  **Playwright MCP**(`@playwright/mcp`, MCP Gateway 경유 + 도메인 allowlist)로 구현체 명시.
+- **모델링 원칙.** 별도 도메인 신설 없이 기존 Connector/MCP/OAuth/artifact-svc 재사용. export 타깃·OAuth 엔드포인트를
+  `{kind}` 일반화(§7), export body에 target/format/to/subject 확장, SSE export_start/done 공유.
+- **반영 위치.** §0-A(v3.2 changelog)·§0(#4·#6)·§3(kind enum+Input/Trigger 개념)·§4·§5.2·§6(connector kind)·§7(OAuth `{kind}`+export target)·§10(커넥터별 최소 스코프+브라우저 격리+메일 발송 게이팅)·§11·§13 Phase15·§15(Open Decisions)·§16.
+- **Phase 15 착수순서.** Google Workspace → Obsidian → Gmail/Outlook → Playwright MCP. Non-goal은 브라우저 **녹화/재생**으로 한정(MCP 스크립트 액션은 범위).
+- **상태.** PRD/checklist/context-notes 문서만 수정. **코드/빌드 없음.** Phase 11(000008)부터 빌드 go-신호 대기 유지.
+
+### 2026-06-20 — PRD v3.0 → v3.1 수정 (Google Workspace 연동 + 개발 동기화)
+- **개발 동기화.** PRD v3가 플랜 구체화분을 미반영하던 부분 정합: ① MVP 마이그레이션 `000008`은 **3테이블만**
+  (`workflow`/`workflow_run`/`workflow_step_run`) — connector/schedule/memory/alert는 후속(Phase 15~17). ② 포트 8006,
+  오케스트레이션→workflow-svc **내부 write API**(`POST /v1/runs`,`POST /v1/runs/{id}/steps`,`PATCH /v1/steps/{id}`),
+  Loop 7/PLAN §5/checklist cross-reference 추가. 헤더 v3.1·status "go-신호 대기"로 갱신, §0-A changelog 신설.
+- **신규 기능 — Google Workspace 파일 생성.** 멀티에이전트 협업 결과물을 Docs/Sheets/Slides/Drive 파일로 생성하는
+  **Output/Export 커넥터**(`gworkspace` kind)로 모델링. 별도 도메인 아님 — Connector/artifact-svc 재사용.
+  반영 위치: §0(6번째 능력)·§3(Connector kind+Output Target 개념)·§4·§5.2(Export 노드)·§5.3(artifact external_file_ref)·
+  §6(connector `gworkspace`/`workflow_step_run.external_file_ref`)·§7(OAuth URL/callback + `POST /v1/runs/{id}/export`)·
+  §8(export_start/done SSE)·§10(OAuth `drive.file` 최소권한+audit)·§11(Connectors OAuth/Runs 내보내기)·§13 Phase 15·§15·§16.
+- **설계 기본값(Open Decisions에 대안 명시).** 사용자 단위 OAuth + `drive.file` 최소 스코프, refresh token은 secret_ref,
+  항상 신규 파일 생성, Docs/Sheets 우선. 빌드는 **Phase 15** 범위(MVP 11~14 이후) — 현재 코드 변경 없음.
+- **상태.** PRD/checklist/context-notes 문서만 수정. **코드/빌드 없음.** Phase 11(000008)부터의 빌드 go-신호는 여전히 대기.
 
 ### 2026-06-20 — 피커 정리 + Admin 에이전트별 사용량 (별도 세션 작업)
 - **피커 정리.** 테스트 에이전트 8개(Shouty/e2e-src*/Summarizer*/test) 삭제 후 실예시 3개 시드

@@ -66,7 +66,8 @@ forgenta/
 │ ├── headroom-proxy/ (Go)
 │ ├── catalog-svc/ (Go)
 │ ├── artifact-svc/ (Go)
-│ └── governance-svc/ (Go)
+│ ├── governance-svc/ (Go)
+│ └── workflow-svc/ (Go, v3 — Workflow Fabric)
 │
 ├── web/ ← Frontend (React + Vite + TypeScript)
 │ └── src/
@@ -146,6 +147,8 @@ make integration-test
 cd web
 npm install && npm run build && npm run test
 # 검증 기준: 빌드 성공, 컴포넌트 테스트 통과
+#   + UI 작업은 DESIGN.md 준수(§3.5): light/dark 토글, semantic token, 반응형(375/768/1024/1440),
+#     모션 예산(150~320ms), WebGL은 enhancement-only, 접근성 floor(focus/keyboard/reduced-motion)
 ```
 
 ### Loop 6: E2E 검증 (End-to-End)
@@ -156,6 +159,31 @@ make e2e-test
 #   - Catalog 검색 → Agent 실행 플로우 완료
 #   - Admin → Usage 조회 플로우 완료
 ```
+
+### Loop 7: 워크플로우 수직 슬라이스 (v3 — Workflow Fabric, Phase 11~14)
+```bash
+# v3 MVP: 설명 → 컴파일 → 검토/승인 → 다단계 핸드오프 실행
+make migrate                    # 000008 workflow 스키마 (Loop 2 재사용)
+# workflow-svc 빌드/테스트(Loop 3 패턴) + orchestration compiler/runtime
+make images && make deploy-core # workflow-svc(8006) 포함 배포
+make integration-test           # 워크플로우 compile/run/approval 플로우 추가
+# 검증 기준:
+#   - NL 설명 → compile SSE가 steps≥2 유효 spec 반환
+#   - 2단계 run → step_run 2건 + context handoff + done 이벤트
+#   - requires_approval 단계 → approval 생성/정지 → approve 후 resume, reject 후 halt
+# 상세: PLAN.md §5(v3 플랜) · checklist.md Phase 11~17 · PRD docs/prd/Forgenta PRD v3.md
+```
+
+### 3.5 UI/디자인 규칙 (DESIGN.md 준수)
+> UI/UX/테마/모션/반응형/WebGL 작업은 **`DESIGN.md`를 먼저 읽고 따른다**(시각적 헌법).
+> 단, **이미 존재하는 프로젝트 design system을 우선 재사용한다** — 본 레포 web은 **React + Vite + Mantine 7**이며,
+> 새 시각 언어를 즉흥 생성하지 않는다. DESIGN.md의 shadcn/ui+Tailwind 편향은 **신규 React/Tailwind 프로젝트 한정**이고,
+> 본 레포는 Mantine을 design system으로 채택했으므로 **DESIGN.md 원칙을 Mantine에 매핑**한다(마이그레이션 비목표, `context-notes.md` 결정 기록).
+> - 테마: Mantine `colorScheme`(light/dark) + CSS 변수 semantic token(§DESIGN Theme System), 하드코딩 hex 금지.
+> - 반응형: 375/768/1024/1440 검증, touch target ≥44px, hover-only 의미 금지.
+> - 모션: 150~320ms, opacity/transform 우선, reduced-motion 존중.
+> - WebGL: enhancement-only(핵심 업무 UI·폼·표·내비 금지), 미지원 시 폴백.
+> - 접근성 floor: 대비/focus/keyboard/reduced-motion. 금지 규칙(DESIGN.md Prohibitions)은 PRD가 명시 override하지 않는 한 적용.
 
 ---
 
