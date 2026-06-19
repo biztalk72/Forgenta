@@ -48,13 +48,12 @@
 - [x] verify: 게이트웨이 경유 스트리밍 + quality:high 폴백 + /v1/run(graph) + 401 ✅
 - [x] 컨테이너화 + 배포 → 완료(in-cluster verify). Planner/Critic/Summarizer 노드는 워크플로우 단계에서
 
-## Phase 5 — Headroom Proxy (Loop 3c)  ← 진행중 (코드 완료, 배포/검증 미완)
+## Phase 5 — Headroom Proxy (Loop 3c)  ✅
 - [x] headroom-proxy Go 서비스: Kompress-base(text)/SmartCrusher(json)/CodeCompressor(code, 정규식 기반)
 - [x] 토큰 추정 + safe/aggressive 모드 + invalid-json→text 폴백
 - [x] 단위 테스트 4 + go.work 등록 + Makefile/Dockerfile
-- [x] forgenta-core values/template 추가, build-images.sh에 headroom 추가
-- [ ] **배포 미완**: 이미지 빌드/import + helm upgrade 미실행 (사용자 중단). 재개 시 `make images && make deploy-core`
-- [ ] verify 미완: compress safe vs aggressive ratio + compression_ratio 로그 확인
+- [x] forgenta-core 배포 (in-cluster) + build-images.sh에 headroom 추가
+- [x] verify: json safe 0.07 vs aggressive 0.29(null 제거), text 압축, invalid→text 폴백, compression_ratio 로그 ✅
 - [ ] (선택) orchestration→headroom 연동(HEADROOM_ENABLED, 실패 시 무압축 폴백) → Phase 8 통합에서
 
 ## Phase 6 — Catalog + Artifact (Loop 3d)
