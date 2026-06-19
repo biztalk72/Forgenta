@@ -5,14 +5,20 @@ import time
 from collections.abc import AsyncIterator
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import config
+from . import config, integrations
 from .graph import build_graph
 from .providers import stream
 from .router import ModelRouter, RouteRequest
+
+
+def _provider(model: str | None) -> str:
+    if not model:
+        return ""
+    return model.split("/", 1)[0] if "/" in model else model
 
 VERSION = "0.1.0"
 cfg = config.load()
@@ -60,15 +66,20 @@ async def ready():
 
 
 @app.post("/v1/chat/stream")
-async def chat_stream(req: ChatRequest):
+async def chat_stream(req: ChatRequest, request: Request):
+    ws = request.headers.get("X-Workspace-Id", "")
+    user = request.headers.get("X-User-Id", "")
+    prompt, orig_tok, comp_tok = req.prompt, 0, 0
+    if cfg.headroom_enabled:
+        prompt, orig_tok, comp_tok = await integrations.compress(cfg, prompt)
     chain = model_router.route(RouteRequest(**req.routing))
-    messages = [{"role": "user", "content": req.prompt}]
+    messages = [{"role": "user", "content": prompt}]
+    prompt_tok = comp_tok or (len(prompt) // 4 + 1)
 
     async def gen() -> AsyncIterator[str]:
         yield _sse("meta", {"chain": chain})
         start = time.time()
         served, ntok = None, 0
-        last_err = None
         for model in chain:
             try:
                 async for tok in stream(cfg, model, messages):
@@ -77,12 +88,19 @@ async def chat_stream(req: ChatRequest):
                 served = model
                 break
             except Exception as e:  # noqa: BLE001 - 폴백 체인
-                last_err = str(e)
-                yield _sse("fallback", {"model": model, "reason": last_err})
+                yield _sse("fallback", {"model": model, "reason": str(e)})
                 continue
         latency_ms = int((time.time() - start) * 1000)
-        log("llm_call_complete", model=served, completion_tokens=ntok,
+        log("llm_call_complete", model=served, provider=_provider(served),
+            prompt_tokens=prompt_tok, completion_tokens=ntok,
+            original_tokens=orig_tok, compressed_tokens=comp_tok,
             latency_ms=latency_ms, success=served is not None)
+        await integrations.record_usage(cfg, ws, user, {
+            "provider": _provider(served), "model": served or "",
+            "prompt_tokens": prompt_tok, "completion_tokens": ntok,
+            "original_tokens": orig_tok, "compressed_tokens": comp_tok,
+            "latency_ms": latency_ms, "success": served is not None,
+        })
         yield _sse("done", {"model": served, "completion_tokens": ntok,
                             "latency_ms": latency_ms, "success": served is not None})
 

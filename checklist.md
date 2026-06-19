@@ -69,10 +69,11 @@
 - [x] verify: usage summary(events/tokens/tokens_saved), 승인 create→approve→0 pending, audit(requested+approved) ✅
 - [ ] 크레딧 정책 / MCP 계량 → 후속 (현재 usage 집계 + tokens_saved까지)
 
-## Phase 8 — Integration (Loop 4)
-- [ ] 서비스 간 배선
-- [ ] `make integration-test`
-- [ ] verify: Loop 4 기준 4종 통과
+## Phase 8 — Integration (Loop 4)  ✅
+- [x] orchestration→headroom 압축 연동 (HEADROOM_ENABLED, 실패 시 무압축 폴백)
+- [x] orchestration→governance UsageEvent 자동 기록 (fault-tolerant, 스트림 완료 시)
+- [x] `infra/scripts/integration-test.sh` + `make integration-test`
+- [x] verify: 6/6 통과 (게이트웨이 라우팅, Orchestration→Ollama, Metering UsageEvent, Catalog CRUD, 인증 401) ✅
 
 ## Phase 9 — Frontend (Loop 5)
 - [ ] Login / Dashboard

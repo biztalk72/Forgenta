@@ -29,6 +29,12 @@ spec:
               value: {{ .Values.orchestration.executorModel | quote }}
             - name: DEFAULT_ROUTER_MODEL
               value: {{ .Values.orchestration.routerModel | quote }}
+            - name: HEADROOM_PROXY_URL
+              value: "http://headroom-proxy:{{ .Values.headroomProxy.port }}"
+            - name: HEADROOM_ENABLED
+              value: "true"
+            - name: GOVERNANCE_URL
+              value: "http://governance-svc:{{ .Values.governance.port }}"
           readinessProbe:
             httpGet:
               path: /health/ready

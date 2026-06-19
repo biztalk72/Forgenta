@@ -113,6 +113,15 @@
 - **현재 forgenta-core: 7개 서비스 전부 in-cluster** (gateway/identity/orchestration/headroom/catalog/artifact/governance).
 - **남은 단계:** Phase 8(통합테스트) → 9(프론트엔드) → 10(관측+E2E). orchestration→headroom 연동은 Phase 8에서.
 
+### 2026-06-19 — Phase 8 완료 (verify 통과)
+- **서비스 간 배선.** orchestration이 요청 시 (1) headroom으로 프롬프트 압축(HEADROOM_ENABLED, 실패→무압축),
+  (2) 스트림 완료 후 governance /v1/usage로 UsageEvent 기록(X-Workspace-Id/X-User-Id 헤더 전달, fault-tolerant).
+  `app/integrations.py`에 compress/record_usage. orchestration deployment에 HEADROOM_PROXY_URL/GOVERNANCE_URL/HEADROOM_ENABLED env 추가.
+- **통합 테스트.** `infra/scripts/integration-test.sh`(make integration-test): 게이트웨이 경유 login→/auth/me,
+  stream 후 usage events +1, catalog create/get/delete, 무토큰 401. 6/6 통과.
+- **검증.** usage_event에 original_tokens/compressed_tokens 채워짐(headroom 호출 확인). 짧은 프롬프트라 9→9(압축 0).
+- **남은 단계:** Phase 9(프론트엔드 — 디자인 결정 필요) → Phase 10(관측 Loki/Prometheus/Grafana + E2E).
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

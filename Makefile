@@ -29,3 +29,6 @@ images: ## 핵심 서비스 이미지 빌드 + k3d import
 
 deploy-core: ## forgenta-core 차트 배포 (이미지 import 후 실행)
 	helm upgrade --install forgenta-core infra/helm/forgenta-core -n forgenta-core
+
+integration-test: ## 게이트웨이 경유 통합 테스트 (Loop 4)
+	bash infra/scripts/integration-test.sh
