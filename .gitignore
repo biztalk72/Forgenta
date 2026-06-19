@@ -42,3 +42,6 @@ settings.local.json
 # Go build output
 bin/
 .pytest_cache/
+
+# graphify 산출물 (생성물, 추적 제외)
+graphify-out/
