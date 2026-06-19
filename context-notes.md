@@ -57,6 +57,19 @@
 - **dev 비밀번호.** migration 000007에서 admin@forgenta.local에 bcrypt('forgenta') 설정(dev 전용). $2y$ 해시는 Go bcrypt 호환.
 - **zsh 주의.** Bash 도구 셸이 zsh → 따옴표 없는 변수 단어분리 안 됨. curl 플래그는 인라인으로.
 
+### 2026-06-19 — Phase 4 완료 (verify 통과). 결정 대기 #2 해소
+- **모델 세트.** 결정대로 `qwen3:8b`(executor) + `qwen3:1.7b`(router/summarizer)만 풀. ollama에 기존 대형
+  모델(qwen3-coder:30b, qwen3.5:27b, gemma4) 존재하나 슬라이스는 경량 2종만 사용. 결정 대기 #2 해소.
+- **언어/런타임.** Python 3.12 venv 사용(3.14는 wheel 위험으로 회피). LangGraph 0.2+ 정상 설치.
+- **구성.** FastAPI. `app/router.py`(정책, 순수·테스트됨), `app/providers.py`(Ollama 스트리밍 + 클라우드 Unavailable),
+  `app/graph.py`(LangGraph router→executor, /v1/run), `app/main.py`(SSE /v1/chat/stream + /v1/run + 헬스).
+- **스트리밍 vs 그래프.** 토큰 스트리밍 경로는 providers.stream을 직접 사용(LangGraph 토큰 스트리밍 복잡도 회피),
+  /v1/run은 그래프 ainvoke로 노드 분리 데모. 둘 다 router+providers 공유.
+- **폴백 검증.** quality:high → [claude, gemini, qwen3:8b]. 클라우드 키 없음 → Unavailable → fallback 이벤트 후
+  qwen3:8b 성공. 클라우드 프로바이더는 Phase 4에서 스텁(Unavailable). 실제 호출은 후속.
+- **계량 메모.** usage는 §7 JSON 로그로만 기록(완료 시 model/tokens/latency). DB UsageEvent 기록은 Phase 7.
+- **게이트웨이.** 스트리밍 위해 ReverseProxy.FlushInterval=-1. /api/orchestration/* JWT 보호.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

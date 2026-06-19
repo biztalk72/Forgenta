@@ -4,16 +4,18 @@ package config
 import "os"
 
 type Config struct {
-	Port        string
-	JWTSecret   string
-	IdentityURL string
+	Port             string
+	JWTSecret        string
+	IdentityURL      string
+	OrchestrationURL string
 }
 
 func Load() Config {
 	return Config{
-		Port:        env("API_GATEWAY_PORT", "8000"),
-		JWTSecret:   env("JWT_SECRET", "change-me-in-production-minimum-32-chars"),
-		IdentityURL: env("IDENTITY_URL", "http://localhost:8001"),
+		Port:             env("API_GATEWAY_PORT", "8000"),
+		JWTSecret:        env("JWT_SECRET", "change-me-in-production-minimum-32-chars"),
+		IdentityURL:      env("IDENTITY_URL", "http://localhost:8001"),
+		OrchestrationURL: env("ORCHESTRATION_URL", "http://localhost:8002"),
 	}
 }
 

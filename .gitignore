@@ -41,3 +41,4 @@ settings.local.json
 
 # Go build output
 bin/
+.pytest_cache/

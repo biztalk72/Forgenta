@@ -26,6 +26,16 @@ func main() {
 	// /api/identity 프리픽스를 떼고 Identity-Svc로 프록시한다.
 	identityProxy := http.StripPrefix("/api/identity", httputil.NewSingleHostReverseProxy(identityURL))
 
+	orchestrationURL, err := url.Parse(cfg.OrchestrationURL)
+	if err != nil {
+		log.Error("bad_orchestration_url", "err", err)
+		return
+	}
+	// 스트리밍(SSE) 즉시 플러시를 위해 FlushInterval = -1.
+	orchRP := httputil.NewSingleHostReverseProxy(orchestrationURL)
+	orchRP.FlushInterval = -1
+	orchestrationProxy := http.StripPrefix("/api/orchestration", orchRP)
+
 	mux := http.NewServeMux()
 	health.Handler{Service: "api-gateway", Version: version}.Register(mux)
 
@@ -33,6 +43,8 @@ func main() {
 	mux.Handle("POST /api/identity/auth/login", identityProxy)
 	// 보호 경로: JWT 검증 후 프록시
 	mux.Handle("GET /api/identity/auth/me", middleware.Auth(cfg.JWTSecret, identityProxy))
+	mux.Handle("POST /api/orchestration/v1/chat/stream", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
+	mux.Handle("POST /api/orchestration/v1/run", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
 
 	handler := middleware.RateLimit(20, 40, mux)
 
