@@ -66,7 +66,8 @@ forgenta/
 │ ├── headroom-proxy/ (Go)
 │ ├── catalog-svc/ (Go)
 │ ├── artifact-svc/ (Go)
-│ └── governance-svc/ (Go)
+│ ├── governance-svc/ (Go)
+│ └── workflow-svc/ (Go, v3 — Workflow Fabric)
 │
 ├── web/ ← Frontend (React + Vite + TypeScript)
 │ └── src/
@@ -155,6 +156,20 @@ make e2e-test
 #   - 로그인 → Dashboard → 프롬프트 입력 → 결과 수신 플로우 완료
 #   - Catalog 검색 → Agent 실행 플로우 완료
 #   - Admin → Usage 조회 플로우 완료
+```
+
+### Loop 7: 워크플로우 수직 슬라이스 (v3 — Workflow Fabric, Phase 11~14)
+```bash
+# v3 MVP: 설명 → 컴파일 → 검토/승인 → 다단계 핸드오프 실행
+make migrate                    # 000008 workflow 스키마 (Loop 2 재사용)
+# workflow-svc 빌드/테스트(Loop 3 패턴) + orchestration compiler/runtime
+make images && make deploy-core # workflow-svc(8006) 포함 배포
+make integration-test           # 워크플로우 compile/run/approval 플로우 추가
+# 검증 기준:
+#   - NL 설명 → compile SSE가 steps≥2 유효 spec 반환
+#   - 2단계 run → step_run 2건 + context handoff + done 이벤트
+#   - requires_approval 단계 → approval 생성/정지 → approve 후 resume, reject 후 halt
+# 상세: PLAN.md §5(v3 플랜) · checklist.md Phase 11~17 · PRD docs/prd/Forgenta PRD v3.md
 ```
 
 ---
