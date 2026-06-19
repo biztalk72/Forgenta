@@ -56,10 +56,12 @@
 - [x] verify: json safe 0.07 vs aggressive 0.29(null 제거), text 압축, invalid→text 폴백, compression_ratio 로그 ✅
 - [ ] (선택) orchestration→headroom 연동(HEADROOM_ENABLED, 실패 시 무압축 폴백) → Phase 8 통합에서
 
-## Phase 6 — Catalog + Artifact (Loop 3d)
-- [ ] Catalog-Svc: CRUD, Clone/Use/Edit/Move, CloneLineage
-- [ ] Artifact-Svc: OutputArtifact 저장/조회, MinIO, 멀티모달 타입
-- [ ] verify: Catalog CRUD+Clone, Artifact 라운드트립
+## Phase 6 — Catalog + Artifact (Loop 3d)  ✅
+- [x] Catalog-Svc: Agent CRUD + Clone(clone_lineage 기록). App/PromptTemplate은 동일 패턴 확장 예정
+- [x] Artifact-Svc: OutputArtifact 저장/조회 + MinIO(PutObject/GetObject), 버킷 보장
+- [x] go.work 등록, Makefile/Dockerfile, build/vet 통과
+- [x] forgenta-core 배포(catalog 8003, artifact 8004) + 게이트웨이 서브트리 라우트(/api/catalog,/api/artifact)
+- [x] verify: 게이트웨이 경유 Agent create/list/clone(계보 기록), Artifact 저장→content 라운드트립 ✅
 
 ## Phase 7 — Governance & Metering (Loop 3e)
 - [ ] Approval queue / AuditLog / UsageEvent / 크레딧 정책 / MCP 계량

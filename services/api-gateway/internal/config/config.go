@@ -8,6 +8,8 @@ type Config struct {
 	JWTSecret        string
 	IdentityURL      string
 	OrchestrationURL string
+	CatalogURL       string
+	ArtifactURL      string
 }
 
 func Load() Config {
@@ -16,6 +18,8 @@ func Load() Config {
 		JWTSecret:        env("JWT_SECRET", "change-me-in-production-minimum-32-chars"),
 		IdentityURL:      env("IDENTITY_URL", "http://localhost:8001"),
 		OrchestrationURL: env("ORCHESTRATION_URL", "http://localhost:8002"),
+		CatalogURL:       env("CATALOG_URL", "http://localhost:8003"),
+		ArtifactURL:      env("ARTIFACT_URL", "http://localhost:8004"),
 	}
 }
 

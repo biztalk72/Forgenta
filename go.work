@@ -2,6 +2,8 @@ go 1.26
 
 use (
 	./services/api-gateway
+	./services/artifact-svc
+	./services/catalog-svc
 	./services/headroom-proxy
 	./services/identity-svc
 	./services/shared

@@ -94,6 +94,15 @@
 - **다음 단계.** Phase 5 마무리 → Phase 6(Catalog+Artifact) → Phase 7(Governance), 그 후 보고 (auto mode: Phase 7까지).
 - **`.env.example` 미해결.** harness PreToolUse 훅이 `.env*` 쓰기를 차단 → 에이전트가 생성 불가. 사용자가 직접 생성 필요.
 
+### 2026-06-19 — Phase 6 완료 (verify 통과)
+- **Catalog-Svc.** Agent CRUD + clone(트랜잭션으로 복제 + clone_lineage 기록). App/PromptTemplate은 동일 패턴
+  으로 확장 예정(미구현). 워크스페이스/유저는 게이트웨이가 주입하는 X-Workspace-Id/X-User-Id 헤더에서 읽음.
+- **Artifact-Svc.** minio-go로 PutObject/GetObject, 시작 시 버킷 보장. content는 평문 저장(텍스트), 라운드트립 확인.
+- **게이트웨이.** /api/catalog/ , /api/artifact/ 를 서브트리(트레일링 슬래시) 패턴으로 전체 메서드 프록시 + JWT 보호.
+  **함정:** 게이트웨이 Deployment에 CATALOG_URL/ARTIFACT_URL env 누락 시 기본값 localhost로 502 → 템플릿에 추가함.
+- **검증.** create→list→clone(Summarizer (copy), clone_lineage 1건)→artifact 저장→content 라운드트립 모두 통과.
+- **현재 forgenta-core: 6개 서비스 in-cluster** (gateway/identity/orchestration/headroom/catalog/artifact).
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

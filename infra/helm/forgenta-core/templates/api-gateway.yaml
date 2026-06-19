@@ -29,6 +29,10 @@ spec:
               value: "http://identity-svc:{{ .Values.identity.port }}"
             - name: ORCHESTRATION_URL
               value: "http://orchestration-svc:{{ .Values.orchestration.port }}"
+            - name: CATALOG_URL
+              value: "http://catalog-svc:{{ .Values.catalog.port }}"
+            - name: ARTIFACT_URL
+              value: "http://artifact-svc:{{ .Values.artifact.port }}"
           readinessProbe:
             httpGet:
               path: /health

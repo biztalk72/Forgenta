@@ -26,11 +26,20 @@ headroomProxy:
   port: 8787
   mode: safe
 
-# 후속 서비스는 해당 Phase에서 활성화
-
 catalog:
-  enabled: false
+  enabled: true
+  image: forgenta/catalog-svc:latest
+  port: 8003
+
 artifact:
-  enabled: false
+  enabled: true
+  image: forgenta/artifact-svc:latest
+  port: 8004
+  minioEndpoint: minio.forgenta-infra.svc.cluster.local:9000
+  minioAccessKey: forgenta
+  minioSecretKey: forgenta-secret
+  bucket: artifacts
+
+# 후속 서비스는 해당 Phase에서 활성화
 governance:
   enabled: false
