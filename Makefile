@@ -32,3 +32,6 @@ deploy-core: ## forgenta-core 차트 배포 (이미지 import 후 실행)
 
 integration-test: ## 게이트웨이 경유 통합 테스트 (Loop 4)
 	bash infra/scripts/integration-test.sh
+
+e2e-test: ## web(nginx) 경유 E2E 3대 플로우 (Loop 6)
+	bash infra/scripts/e2e-test.sh

@@ -1,9 +1,10 @@
-# forgenta-obs 차트 기본값 (Phase 10에서 활성화)
-namespace: forgenta-obs
-
+# forgenta-obs 차트 기본값 - 로그 관측(Loki+promtail+Grafana). Prometheus 메트릭은 후속(서비스 /metrics 필요)
 loki:
-  enabled: false
-prometheus:
-  enabled: false
+  enabled: true
+  image: grafana/loki:3.1.1
+promtail:
+  enabled: true
+  image: grafana/promtail:3.1.1
 grafana:
-  enabled: false
+  enabled: true
+  image: grafana/grafana:11.2.0

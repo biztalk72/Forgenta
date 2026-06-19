@@ -133,6 +133,16 @@
   forgenta-ui 차트로 배포. port-forward로 index/SPA fallback/JS/로그인(API 프록시) 검증.
 - **남은 단계:** Phase 10(관측 Loki/Prometheus/Grafana + E2E 3플로우). 현재 8개 워크로드 in-cluster(7 core + web).
 
+### 2026-06-19 — Phase 10 완료 (verify 통과). 전체 10단계 완료
+- **버그 수정.** integration-test 플레이키: 로컬 8000을 Docker(com.docke)가 점유 → kubectl port-forward 경합으로
+  로그인이 엉뚱한 리스너에 도달. 18080 포트 + /health 폴링 선행으로 수정. 전체 테스트(go/pytest/vitest) green.
+- **E2E.** `infra/scripts/e2e-test.sh`(make e2e-test): 배포된 web(nginx)→게이트웨이 경유 3대 플로우 7/7 통과.
+- **관측.** forgenta-obs: Loki(단일바이너리, tsdb/filesystem, ephemeral) + promtail(DaemonSet, /var/log/pods 정적 tail,
+  RBAC 불요) + Grafana(anonymous Admin, Loki 데이터소스 프로비저닝). Loki 로그 인제스트 + Grafana health 확인.
+- **관측 후속.** Prometheus 메트릭은 서비스 /metrics 계측 필요 → 미구현(로그 관측만 제공). OTel 트레이싱도 후속.
+- **전체 클러스터.** forgenta-infra(PG/Redis/Qdrant/MinIO) + forgenta-core(7 서비스) + forgenta-ui(web) +
+  forgenta-obs(loki/promtail/grafana). 헬퍼: make cluster-up/migrate/images/deploy-core/integration-test/e2e-test.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

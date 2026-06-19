@@ -82,6 +82,10 @@
 - [x] verify: 빌드(tsc+vite) 성공 + 컴포넌트 테스트 1 통과 ✅
 - [x] 컨테이너화(nginx) + forgenta-ui 배포: SPA 서빙 + /api 프록시→게이트웨이 검증 ✅
 
-## Phase 10 — Observability + E2E (Loop 6)
-- [ ] `forgenta-obs`: Loki / Prometheus / Grafana / OTel
-- [ ] verify: 3대 E2E 플로우 완료
+## Phase 10 — Observability + E2E (Loop 6)  ✅
+- [x] `forgenta-obs`: Loki + promtail(파드 로그 tail) + Grafana(Loki 데이터소스). 로그 인제스트 검증
+- [x] E2E 스크립트(`infra/scripts/e2e-test.sh`, make e2e-test): web(nginx)→게이트웨이 3대 플로우
+- [x] verify: E2E 7/7 (로그인→스트리밍, 카탈로그 검색→clone, admin usage+승인) ✅
+- [x] bug fix: integration-test 포트 경합(8000 Docker 점유) 플레이키 → 18080 + /health 폴링으로 수정
+- [ ] Prometheus 메트릭 → 후속 (서비스 /metrics 계측 필요). 현재 obs는 로그 중심.
+- [ ] OTel 트레이싱 → 후속

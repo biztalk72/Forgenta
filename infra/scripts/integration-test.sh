@@ -4,14 +4,22 @@
 set -euo pipefail
 
 NS=forgenta-core
-PORT=8000
-BASE="http://localhost:${PORT}"
+LPORT=18080   # 로컬 포워드 포트 (8000은 Docker가 점유할 수 있어 회피)
+BASE="http://localhost:${LPORT}"
 
 cleanup() { [ -n "${PF_PID:-}" ] && kill "$PF_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 
-kubectl port-forward -n "$NS" svc/api-gateway ${PORT}:8000 >/dev/null 2>&1 &
+kubectl port-forward -n "$NS" svc/api-gateway ${LPORT}:8000 >/dev/null 2>&1 &
 PF_PID=$!
+
+# 포트포워드가 완전히 준비될 때까지 /health 200을 폴링 (connection reset 레이스 방지)
+ready=0
+for _ in $(seq 1 30); do
+  if curl -sf "$BASE/health" >/dev/null 2>&1; then ready=1; break; fi
+  sleep 1
+done
+[ "$ready" -eq 1 ] || { echo "  FAIL gateway not reachable"; exit 1; }
 
 pass=0; fail=0
 check() { # name expected actual
