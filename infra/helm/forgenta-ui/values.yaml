@@ -1,0 +1,5 @@
+# forgenta-ui 차트 기본값 - 웹 대시보드
+web:
+  enabled: true
+  image: forgenta/web:latest
+  port: 80

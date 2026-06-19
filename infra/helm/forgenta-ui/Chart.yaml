@@ -1,0 +1,6 @@
+apiVersion: v2
+name: forgenta-ui
+description: Forgenta 웹 대시보드 (React + Vite, nginx)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

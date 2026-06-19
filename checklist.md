@@ -75,11 +75,12 @@
 - [x] `infra/scripts/integration-test.sh` + `make integration-test`
 - [x] verify: 6/6 통과 (게이트웨이 라우팅, Orchestration→Ollama, Metering UsageEvent, Catalog CRUD, 인증 401) ✅
 
-## Phase 9 — Frontend (Loop 5)
-- [ ] Login / Dashboard
-- [ ] 프롬프트 입력 + Output Panel (멀티모달 탭)
-- [ ] Catalog 검색 / Admin·Usage
-- [ ] verify: 빌드 + 컴포넌트 테스트
+## Phase 9 — Frontend (Loop 5)  ✅
+- [x] React+Vite+TS + Mantine. Login / Dashboard / Catalog / Admin (full dashboard)
+- [x] 프롬프트 → SSE 스트리밍 Output Panel (Text/Raw/Events 탭 + 투명성 상태바)
+- [x] Catalog 검색/생성/Clone/삭제, Admin Usage 집계 + 승인 큐
+- [x] verify: 빌드(tsc+vite) 성공 + 컴포넌트 테스트 1 통과 ✅
+- [x] 컨테이너화(nginx) + forgenta-ui 배포: SPA 서빙 + /api 프록시→게이트웨이 검증 ✅
 
 ## Phase 10 — Observability + E2E (Loop 6)
 - [ ] `forgenta-obs`: Loki / Prometheus / Grafana / OTel

@@ -122,6 +122,17 @@
 - **검증.** usage_event에 original_tokens/compressed_tokens 채워짐(headroom 호출 확인). 짧은 프롬프트라 9→9(압축 0).
 - **남은 단계:** Phase 9(프론트엔드 — 디자인 결정 필요) → Phase 10(관측 Loki/Prometheus/Grafana + E2E).
 
+### 2026-06-19 — Phase 9 완료 (verify 통과)
+- **선택.** Full dashboard + Component library(Mantine v7). React 18 + Vite 5 + TS, react-router v6.
+- **구성.** web/: lib/api(REST+JWT), lib/stream(SSE-over-fetch, POST+헤더), stores/auth(localStorage),
+  Layout(AppShell), pages/{Login,Dashboard,Catalog,Admin}, components/OutputPanel(Text/Raw/Events 탭).
+- **5원칙 반영.** STREAM-FIRST(SSE 토큰), OUTPUT-CENTRIC(OutputPanel 탭), SEARCH-BEFORE-BUILD(카탈로그 검색),
+  TRANSPARENCY(model/chain/tokens/latency 상태바 + Admin usage), PROGRESSIVE DISCLOSURE(라우팅 옵션 체크박스).
+- **테스트.** vitest + RTL. jsdom에 matchMedia/ResizeObserver 폴리필 필요(Mantine) → src/test/setup.ts. 1 통과.
+- **배포.** nginx 멀티스테이지(Vite build→nginx), nginx.conf가 / SPA fallback + /api→api-gateway.forgenta-core 프록시(SSE 위해 proxy_buffering off).
+  forgenta-ui 차트로 배포. port-forward로 index/SPA fallback/JS/로그인(API 프록시) 검증.
+- **남은 단계:** Phase 10(관측 Loki/Prometheus/Grafana + E2E 3플로우). 현재 8개 워크로드 in-cluster(7 core + web).
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면
