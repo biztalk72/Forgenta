@@ -35,7 +35,8 @@ def log(msg: str, **fields):
 
 
 class ChatRequest(BaseModel):
-    prompt: str
+    prompt: str = ""              # 단일 입력 (하위 호환)
+    messages: list[dict] = []     # 멀티턴 대화 [{role, content}, ...]
     routing: dict = {}
 
 
@@ -69,12 +70,16 @@ async def ready():
 async def chat_stream(req: ChatRequest, request: Request):
     ws = request.headers.get("X-Workspace-Id", "")
     user = request.headers.get("X-User-Id", "")
-    prompt, orig_tok, comp_tok = req.prompt, 0, 0
-    if cfg.headroom_enabled:
-        prompt, orig_tok, comp_tok = await integrations.compress(cfg, prompt)
+    # 멀티턴: messages 우선, 없으면 단일 prompt로 폴백
+    messages = req.messages if req.messages else [{"role": "user", "content": req.prompt}]
+    orig_tok, comp_tok = 0, 0
+    # 최신 사용자 메시지만 압축 (대화 구조 유지)
+    if cfg.headroom_enabled and messages and messages[-1].get("role") == "user":
+        compressed, orig_tok, comp_tok = await integrations.compress(cfg, messages[-1].get("content", ""))
+        messages = messages[:-1] + [{"role": "user", "content": compressed}]
     chain = model_router.route(RouteRequest(**req.routing))
-    messages = [{"role": "user", "content": prompt}]
-    prompt_tok = comp_tok or (len(prompt) // 4 + 1)
+    last_content = messages[-1].get("content", "") if messages else ""
+    prompt_tok = comp_tok or (len(last_content) // 4 + 1)
 
     async def gen() -> AsyncIterator[str]:
         yield _sse("meta", {"chain": chain})

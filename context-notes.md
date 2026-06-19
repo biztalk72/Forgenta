@@ -148,6 +148,14 @@
   8080→80 → Traefik → web. http://localhost:8080 에서 port-forward 없이 접속(index/SPA/API 검증). host 비우면 catch-all.
 - **main origin 푸시 완료** (9a58e33..8865b66, 이후 ingress 커밋 추가 푸시).
 
+### 2026-06-20 — UI/UX: 멀티턴 채팅 + 스크롤
+- **백엔드.** orchestration ChatRequest에 `messages: list[dict]` 추가(prompt와 하위호환). chat_stream은 messages
+  우선 사용, 없으면 [{user, prompt}]. Headroom은 **최신 사용자 메시지만** 압축(대화 구조 유지). /v1/run은 prompt 유지.
+- **프론트.** Dashboard를 멀티턴 채팅으로 재작성: messages 상태 누적, 전체 히스토리를 백엔드로 전송, ScrollArea
+  viewportRef로 토큰마다 하단 auto-scroll, 하단 고정 입력(Enter 전송/Shift+Enter 줄바꿈). 단일출력용 OutputPanel.tsx
+  제거하고 ChatMessage.tsx(user/assistant 버블 + 투명성 메타) 추가. lib/stream.streamChat(messages, routing)로 시그니처 변경.
+- **검증.** 멀티턴 컨텍스트 회상("42") 확인, web/orchestration 재배포, e2e 7/7(단일 prompt 하위호환), web 빌드+테스트 통과.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

@@ -6,8 +6,13 @@ export interface SseEvent {
   data: Record<string, unknown>
 }
 
+export interface ChatTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export async function* streamChat(
-  prompt: string,
+  messages: ChatTurn[],
   routing: Record<string, unknown>,
   signal?: AbortSignal,
 ): AsyncGenerator<SseEvent> {
@@ -17,7 +22,7 @@ export async function* streamChat(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${getToken() ?? ''}`,
     },
-    body: JSON.stringify({ prompt, routing }),
+    body: JSON.stringify({ messages, routing }),
     signal,
   })
   if (!resp.ok || !resp.body) throw new Error(`stream → ${resp.status}`)
