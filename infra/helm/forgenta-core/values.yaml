@@ -20,9 +20,14 @@ apiGateway:
   image: forgenta/api-gateway:latest
   port: 8000
 
-# 헤드룸 등 후속 서비스는 해당 Phase에서 활성화
 headroomProxy:
-  enabled: false
+  enabled: true
+  image: forgenta/headroom-proxy:latest
+  port: 8787
+  mode: safe
+
+# 후속 서비스는 해당 Phase에서 활성화
+
 catalog:
   enabled: false
 artifact:

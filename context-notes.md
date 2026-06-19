@@ -81,6 +81,19 @@
   Phase 3/4의 "로컬 실행만" 이연 항목 해소.
 - **시크릿 메모.** JWT_SECRET/DB URL은 아직 values.yaml 평문 → 운영 전 k8s Secret 전환(결정 대기 #3) 유효.
 
+### 2026-06-19 — Phase 5 진행중 (코드 완료, 배포/검증 미완) — RESUME 지점
+- **완료.** headroom-proxy Go 서비스(compress: text/json/code, safe/aggressive, invalid-json→text 폴백),
+  단위 테스트 4 통과, go.work 등록, Makefile/Dockerfile, forgenta-core values/template/build-images.sh 갱신.
+- **미완(재개 작업).**
+  1. `make images` (또는 headroom 이미지만 build + `k3d image import ... -c forgenta`)
+  2. `make deploy-core` → `kubectl rollout status deploy/headroom-proxy -n forgenta-core`
+  3. verify: `kubectl port-forward svc/headroom-proxy 8787` 후 POST /v1/compress (safe vs aggressive ratio 비교),
+     compress_complete 로그에 compression_ratio 확인.
+- **현재 클러스터 상태.** forgenta-core에 api-gateway/identity-svc/orchestration-svc 3개 Running.
+  headroom-proxy는 아직 미배포(코드만 커밋됨).
+- **다음 단계.** Phase 5 마무리 → Phase 6(Catalog+Artifact) → Phase 7(Governance), 그 후 보고 (auto mode: Phase 7까지).
+- **`.env.example` 미해결.** harness PreToolUse 훅이 `.env*` 쓰기를 차단 → 에이전트가 생성 불가. 사용자가 직접 생성 필요.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

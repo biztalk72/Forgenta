@@ -12,10 +12,12 @@ echo "=== build images ==="
 docker build --platform $PLATFORM -f services/identity-svc/Dockerfile -t forgenta/identity-svc:latest .
 docker build --platform $PLATFORM -f services/api-gateway/Dockerfile -t forgenta/api-gateway:latest .
 docker build --platform $PLATFORM -f services/orchestration-svc/Dockerfile -t forgenta/orchestration-svc:latest services/orchestration-svc
+docker build --platform $PLATFORM -f services/headroom-proxy/Dockerfile -t forgenta/headroom-proxy:latest .
 
 echo "=== import into k3d ==="
 k3d image import \
   forgenta/identity-svc:latest \
   forgenta/api-gateway:latest \
   forgenta/orchestration-svc:latest \
+  forgenta/headroom-proxy:latest \
   -c forgenta
