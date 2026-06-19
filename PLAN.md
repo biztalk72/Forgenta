@@ -156,11 +156,11 @@ Loop 2(DB)/Loop 3(서비스)/Loop 4(통합)/Loop 5(프론트)/Loop 6(E2E)를 재
 ### Phase 14 — 단계 승인 HITL (Loop 3e/4)
 - governance `approval` 재사용: `resource_type='workflow_step_run'`, `resource_id=step_run_id`. 감사 로그에 workflow/run/step 컨텍스트.
 - `requires_approval=true` 단계는 step_run을 `awaiting_approval`로 저장 + approval 생성 후 정지. orchestration `POST /v1/runs/{id}/resume`로 재개.
-- 프론트(`web/src`): `/workflows`(검색→설명→compile→검토/저장), `/runs`(타임라인·live SSE·approve/reject/resume). `lib/stream.streamCompile`/`streamRun`.
+- 프론트(`web/src`): `/workflows`(검색→설명→compile→검토/저장), `/runs`(타임라인·live SSE·approve/reject/resume). `lib/stream.streamCompile`/`streamRun`. **UI는 `DESIGN.md` 준수**(Mantine 재사용, light/dark·semantic token, 반응형 375/768/1024/1440, 모션 150~320ms, 접근성 floor; CLAUDE.md §3.5).
 - **verify:** approval 생성/정지 → approve 후 resume 완료, reject 후 halt. integration/e2e에 워크플로우 플로우 추가 + 기존 회귀 유지.
 
 ### Phase 15~17 — 후속 증분 (MVP 이후)
-- Phase 15 — Connectors: `connector` 테이블 + HTTP/MCP 커넥터(자격증명 `secret_ref`), Playwright 브라우저는 격리 모델 확정 후.
+- Phase 15 — Connectors + 외부 산출: `connector` 테이블 + 커넥터(`gworkspace`/`obsidian`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프. Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·Obsidian 노트·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→Obsidian→메일→Playwright MCP(도메인 allowlist+격리). 상세: PRD v3 §13 Phase 15.
 - Phase 16 — 학습 + 이상탐지: `workflow_memory`+Qdrant RAG 학습 루프, `alert`/`alert_rule` 이상탐지/알림.
 - Phase 17 — 스케줄 + UI: `workflow_schedule`+스케줄러, `/connectors` 페이지, Admin 관측/알림/개선지표.
 

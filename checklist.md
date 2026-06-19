@@ -116,9 +116,10 @@
 - [ ] governance approval 재사용(`resource_type='workflow_step_run'`) + audit 컨텍스트
 - [ ] `awaiting_approval` 정지 → `POST /v1/runs/{id}/resume` 재개 / reject halt
 - [ ] 프론트 `/workflows`+`/runs`(검색·compile·타임라인·live SSE·approve/reject/resume), `lib/stream` 확장
+- [ ] DESIGN.md 준수(Mantine 재사용): light/dark 토글·semantic token, 반응형 375/768/1024/1440, 모션 150~320ms, WebGL enhancement-only, 접근성 floor(focus/keyboard/reduced-motion). CLAUDE.md §3.5
 - [ ] verify: approval 생성/정지 → approve resume, reject halt + integration/e2e 워크플로우 플로우 추가
 
 ## Phase 15~17 — 후속 증분 (MVP 이후)
-- [ ] Phase 15 — Connectors + Google Workspace 파일 생성: `connector`(`gworkspace`/HTTP/MCP, `secret_ref`) + OAuth(scope=drive.file) + Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive, `external_file_ref`/audit). Playwright는 격리 모델 확정 후
+- [ ] Phase 15 — Connectors + 외부 산출: `connector`(`gworkspace`/`obsidian`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프(drive.file/gmail.send/Mail.Send). Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·Obsidian 노트·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→Obsidian→메일→Playwright MCP(도메인 allowlist+격리)
 - [ ] Phase 16 — 학습/이상탐지: `workflow_memory`+Qdrant RAG, `alert`/`alert_rule`
 - [ ] Phase 17 — 스케줄/UI: `workflow_schedule`+스케줄러, `/connectors`, Admin 관측/알림/개선지표
