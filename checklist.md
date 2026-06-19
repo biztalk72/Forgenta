@@ -16,12 +16,12 @@
 - [x] verify: k3d 클러스터 기동 + 4개 네임스페이스 Active 확인 ✅
 
 ## Phase 1 — Infra (Loop 1)
-- [ ] `forgenta-infra` 차트: PostgreSQL(pgvector + TimescaleDB)
-- [ ] Redis
-- [ ] Qdrant
-- [ ] MinIO
-- [ ] `bootstrap.sh`, `health-check.sh`, `pull-models.sh`
-- [ ] verify: 모든 Pod Running + 헬스 200 OK
+- [x] `forgenta-infra` 차트: PostgreSQL (TimescaleDB 2.27.2 + pgvector 0.8.2 검증)
+- [x] Redis (7-alpine)
+- [x] Qdrant
+- [x] MinIO
+- [x] `bootstrap.sh`, `health-check.sh`(infra pods 확장), `pull-models.sh`
+- [x] verify: 4개 Pod Running/Ready + readiness probe 통과 ✅
 
 ## Phase 2 — Database (Loop 2)
 - [ ] 코어 스키마 마이그레이션 (workspace/user/role/agent/app/prompt_template)

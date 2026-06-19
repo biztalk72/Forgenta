@@ -7,3 +7,6 @@ kubectl get nodes
 
 echo "=== forgenta namespaces ==="
 kubectl get ns forgenta-infra forgenta-core forgenta-obs forgenta-ui
+
+echo "=== forgenta-infra pods ==="
+kubectl get pods -n forgenta-infra

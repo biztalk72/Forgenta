@@ -24,6 +24,14 @@
   Headroom/Catalog/Artifact/Governance를 확장.
 - **근거.** CLAUDE.md §2 Simplicity First. 가치 흐름(입력→결과)을 가장 빨리 검증.
 
+### 2026-06-19 — Phase 1 완료 (verify 통과). 결정 대기 #5 해소
+- **Postgres 이미지.** `timescale/timescaledb-ha:pg16` 채택 → 단일 이미지에 **TimescaleDB 2.27.2 + pgvector 0.8.2**
+  모두 포함 확인(`CREATE EXTENSION` 성공). 결정 대기 #5 해소.
+- **배포 방식.** 외부 차트 의존 없이 `forgenta-infra` 차트에 평문 매니페스트 작성(StatefulSet=postgres,
+  Deployment=redis/qdrant/minio, local-path PVC). Simplicity First.
+- **결과.** 4개 Pod(postgresql-0/redis/qdrant/minio) Running/Ready, readiness probe 통과.
+- **보안 메모.** DB/MinIO 자격증명을 values.yaml 평문으로 둠(로컬 dev). 운영 전 k8s Secret 전환 필요(결정 대기 #3).
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면
