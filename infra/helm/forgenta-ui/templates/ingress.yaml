@@ -1,0 +1,22 @@
+{{- if and .Values.web.enabled .Values.web.ingress.enabled }}
+# Web Ingress - Traefik 경유 노출 (k3d loadbalancer 8080→80 → http://localhost:8080)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+spec:
+  ingressClassName: {{ .Values.web.ingress.className }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: {{ .Values.web.port }}
+      {{- if .Values.web.ingress.host }}
+      host: {{ .Values.web.ingress.host }}
+      {{- end }}
+{{- end }}

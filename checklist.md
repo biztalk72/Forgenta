@@ -81,6 +81,7 @@
 - [x] Catalog 검색/생성/Clone/삭제, Admin Usage 집계 + 승인 큐
 - [x] verify: 빌드(tsc+vite) 성공 + 컴포넌트 테스트 1 통과 ✅
 - [x] 컨테이너화(nginx) + forgenta-ui 배포: SPA 서빙 + /api 프록시→게이트웨이 검증 ✅
+- [x] Traefik Ingress 노출: http://localhost:8080 (port-forward 불요) — index/SPA/API 검증 ✅
 
 ## Phase 10 — Observability + E2E (Loop 6)  ✅
 - [x] `forgenta-obs`: Loki + promtail(파드 로그 tail) + Grafana(Loki 데이터소스). 로그 인제스트 검증

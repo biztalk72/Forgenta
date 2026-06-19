@@ -143,6 +143,11 @@
 - **전체 클러스터.** forgenta-infra(PG/Redis/Qdrant/MinIO) + forgenta-core(7 서비스) + forgenta-ui(web) +
   forgenta-obs(loki/promtail/grafana). 헬퍼: make cluster-up/migrate/images/deploy-core/integration-test/e2e-test.
 
+### 2026-06-19 — UI Ingress 노출
+- **Traefik Ingress.** forgenta-ui 차트에 ingress.yaml 추가(catch-all, ingressClassName=traefik). k3d loadbalancer
+  8080→80 → Traefik → web. http://localhost:8080 에서 port-forward 없이 접속(index/SPA/API 검증). host 비우면 catch-all.
+- **main origin 푸시 완료** (9a58e33..8865b66, 이후 ingress 커밋 추가 푸시).
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면
