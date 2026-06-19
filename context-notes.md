@@ -164,6 +164,20 @@
 - **검증.** "ALL UPPERCASE" 시스템 프롬프트 Agent 생성→채팅→출력 대문자 확인, usage_event.agent_id 귀속 1건. e2e 회귀 OK 예상(단일 prompt 유지).
 - **메모.** system 메시지는 messages[] role:system으로 전송(ollama 지원). 시스템 프롬프트는 화면 대화 버블에는 넣지 않고 payload에만 prepend.
 
+## ★ RESUME SNAPSHOT (2026-06-20)
+- **상태:** 전체 10단계 완료 + UI 확장. main = `70f4ae0`, origin/main과 동기(0/0). 워킹트리 clean.
+- **클러스터(가동 중):** forgenta-infra(PG/Redis/Qdrant/MinIO) · forgenta-core(7: gateway/identity/orchestration/
+  headroom/catalog/artifact/governance) · forgenta-ui(web) · forgenta-obs(loki/promtail×3/grafana). 전부 Running.
+- **접속:** UI http://forgenta.localhost:8080 (Traefik ingress, host=forgenta.localhost). 로그인 admin@forgenta.local / forgenta.
+  Grafana: `kubectl port-forward -n forgenta-obs svc/grafana 3000:3000`.
+- **재기동(클러스터 내렸을 때):** `make cluster-up` → `make migrate` → `make images` → `make deploy-core`
+  → `helm upgrade --install forgenta-ui infra/helm/forgenta-ui -n forgenta-ui`
+  → `helm upgrade --install forgenta-obs infra/helm/forgenta-obs -n forgenta-obs`. 검증 `make integration-test`/`make e2e-test`.
+- **UI 기능:** 멀티턴 채팅(auto-scroll) · Agent 피커 드롭다운 · Catalog Chat 버튼 · 시스템 프롬프트 Agent 생성 · 에이전트별 계량.
+- **다음 후보(미결):** ① 피커의 테스트 데이터 정리(Shouty/e2e-src 등 8개 — 사용자 결정 대기) ② App/PromptTemplate
+  카탈로그 엔드포인트+UI ③ Prometheus 메트릭(서비스 /metrics 계측) ④ 클라우드 LLM 실제 연동 ⑤ OIDC/SAML ⑥ k8s Secret 전환.
+- **`.env.example`:** 여전히 미생성(내장 시크릿 가드). 사용자가 `!` heredoc로 생성 필요.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면
