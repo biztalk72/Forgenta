@@ -44,6 +44,19 @@
 - **시드 사용자.** 실제 개인 이메일 대신 `admin@forgenta.local` 사용(커밋 데이터에 PII 미포함).
 - **Go 설치 완료.** `brew install go` → go1.26.4 (/opt/homebrew/bin). Phase 3 차단 해제.
 
+### 2026-06-19 — Phase 3 완료 (verify 통과)
+- **Go 레이아웃.** `go.work` + 모듈 3종(`services/shared`, `identity-svc`, `api-gateway`).
+  consumer go.mod에 `replace github.com/forgenta/shared => ../shared` 추가(go.work 없이/Docker 빌드 대비).
+- **공통 모듈.** Phase 0에서 이연했던 헬스(§6)/JSON 로거(§7, time→ts)/httperr(§8)를 `services/shared`에 구현.
+  JWT 발급/검증은 `shared/token`에 두어 identity(발급)·gateway(검증)가 공유. 의존: golang-jwt/jwt v5.
+- **Identity-Svc.** pgxpool + bcrypt. `/auth/login`(이메일/비번→JWT), `/auth/me`(클레임 조회). 첫 멤버십을
+  워크스페이스/역할로 사용. OIDC/SAML은 MVP 범위 밖 → 후속.
+- **API Gateway.** stdlib ServeMux 메서드 라우팅 + httputil 리버스 프록시(/api/identity→identity-svc).
+  Rate Limiting은 IP별 x/time/rate 토큰버킷(20rps/burst40). Auth 미들웨어가 JWT 검증 후 X-User-Id/X-Workspace-Id/X-Role 주입.
+- **검증 방식.** 로컬 `go run` 2개 + `kubectl port-forward svc/postgresql`로 e2e 확인. 컨테이너화/배포는 이연.
+- **dev 비밀번호.** migration 000007에서 admin@forgenta.local에 bcrypt('forgenta') 설정(dev 전용). $2y$ 해시는 Go bcrypt 호환.
+- **zsh 주의.** Bash 도구 셸이 zsh → 따옴표 없는 변수 단어분리 안 됨. curl 플래그는 인라인으로.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면

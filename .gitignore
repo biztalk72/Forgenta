@@ -38,3 +38,6 @@ chroma_db/
 AGENTS.md
 settings.json
 settings.local.json
+
+# Go build output
+bin/

@@ -31,10 +31,13 @@
 - [x] verify: 13 테이블 + usage_event 하이퍼테이블 + version 6 clean + 시드 확인 ✅
 
 ## Phase 3 — Identity + API Gateway (Loop 3a)
-- [ ] Identity-Svc: OIDC/JWT, RBAC, 워크스페이스 컨텍스트
-- [ ] API Gateway: 라우팅, Rate Limiting, Auth Check, 응답 집계
-- [ ] 단위 테스트
-- [ ] verify: 로그인 → JWT → 보호 요청 라우팅
+- [x] Go 워크스페이스(go.work) + 공통 모듈 `services/shared`(token/health/logging/httperr)
+- [x] Identity-Svc: JWT 로그인/`/auth/me`, bcrypt, RBAC/워크스페이스 컨텍스트 (OIDC/SAML은 후속)
+- [x] API Gateway: 라우팅(리버스 프록시), Rate Limiting(IP별), Auth Check 미들웨어
+- [x] 단위 테스트 (shared/token 라운드트립, gateway/auth 미들웨어)
+- [x] migration 000007: 관리자 dev 비밀번호(bcrypt) 시드
+- [x] verify: 로그인→JWT→`/auth/me`(200) / 무토큰·오답(401) ✅ (로컬 실행 + port-forward DB)
+- [ ] 컨테이너화(Dockerfile) + forgenta-core 배포 → 후속(컨테이너화 단계/Phase 8)
 
 ## Phase 4 — Orchestration + Ollama (Loop 3b) ★
 - [ ] LangGraph 노드: Planner/Executor/Critic/Summarizer/Router
