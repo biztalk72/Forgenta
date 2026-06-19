@@ -31,3 +31,10 @@ chroma_db/
 # AWS
 .aws/
 *.pem
+
+# Local tooling / agent harness (local-only, not shared)
+.claude/
+.harness-mem/
+AGENTS.md
+settings.json
+settings.local.json
