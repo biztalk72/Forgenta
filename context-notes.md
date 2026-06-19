@@ -202,6 +202,23 @@
 - **★ RESUME 지점.** 오케스트레이션 검토·확정 완료. 현재 **사용자 실행 go 신호 대기**(또는 다른 영역 수정 요청).
   실행 시: ① Foundation부터 실행 → ② `run_agents`로 4개 에이전트 fan-out(`plan_id` e7a37d0d 사용) →
   ③ `make images`/`make deploy-core` + integration/e2e 검증. 플랜 본문은 Warp 플랜(plan_id)에서 조회.
+- **Claude Code 핸드오프(2026-06-20).** v3 플랜을 markdown SSOT로 materialize 완료: `CLAUDE.md` §3 **Loop 7**,
+  `PLAN.md` **§5**(v3 Phase 11~17), `checklist.md` **Phase 11~17**. Claude Code는 CLAUDE.md→PLAN.md→checklist.md→
+  context-notes.md 순으로 읽고 **Loop 7 / Phase 11(000008 마이그레이션)부터** Loop Harness(verify 게이트)로 진행.
+
+### 2026-06-20 — PRD v3.0 → v3.1 수정 (Google Workspace 연동 + 개발 동기화)
+- **개발 동기화.** PRD v3가 플랜 구체화분을 미반영하던 부분 정합: ① MVP 마이그레이션 `000008`은 **3테이블만**
+  (`workflow`/`workflow_run`/`workflow_step_run`) — connector/schedule/memory/alert는 후속(Phase 15~17). ② 포트 8006,
+  오케스트레이션→workflow-svc **내부 write API**(`POST /v1/runs`,`POST /v1/runs/{id}/steps`,`PATCH /v1/steps/{id}`),
+  Loop 7/PLAN §5/checklist cross-reference 추가. 헤더 v3.1·status "go-신호 대기"로 갱신, §0-A changelog 신설.
+- **신규 기능 — Google Workspace 파일 생성.** 멀티에이전트 협업 결과물을 Docs/Sheets/Slides/Drive 파일로 생성하는
+  **Output/Export 커넥터**(`gworkspace` kind)로 모델링. 별도 도메인 아님 — Connector/artifact-svc 재사용.
+  반영 위치: §0(6번째 능력)·§3(Connector kind+Output Target 개념)·§4·§5.2(Export 노드)·§5.3(artifact external_file_ref)·
+  §6(connector `gworkspace`/`workflow_step_run.external_file_ref`)·§7(OAuth URL/callback + `POST /v1/runs/{id}/export`)·
+  §8(export_start/done SSE)·§10(OAuth `drive.file` 최소권한+audit)·§11(Connectors OAuth/Runs 내보내기)·§13 Phase 15·§15·§16.
+- **설계 기본값(Open Decisions에 대안 명시).** 사용자 단위 OAuth + `drive.file` 최소 스코프, refresh token은 secret_ref,
+  항상 신규 파일 생성, Docs/Sheets 우선. 빌드는 **Phase 15** 범위(MVP 11~14 이후) — 현재 코드 변경 없음.
+- **상태.** PRD/checklist/context-notes 문서만 수정. **코드/빌드 없음.** Phase 11(000008)부터의 빌드 go-신호는 여전히 대기.
 
 ### 2026-06-20 — 피커 정리 + Admin 에이전트별 사용량 (별도 세션 작업)
 - **피커 정리.** 테스트 에이전트 8개(Shouty/e2e-src*/Summarizer*/test) 삭제 후 실예시 3개 시드

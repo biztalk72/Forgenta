@@ -1,20 +1,29 @@
-# Forgenta PRD v3.0
+# Forgenta PRD v3.1
 ## Hybrid Agentic AI Platform — Agentic Operations (Workflow Fabric) 확장
-Version: 3.0 | Status: DRAFT (문서 전용 · 빌드 미수행) | Date: 2026-06-19 | Author: CAIO/CTO | Runtime: MacOS + k3d
+Version: 3.1 | Status: DRAFT (설계 합의 · 빌드 go-신호 대기) | Date: 2026-06-20 | Author: CAIO/CTO | Runtime: MacOS + k3d
 > 본 문서는 PRD v2.0(`docs/prd/Forgenta PRD v2.md`)을 상위 호환으로 계승·확장한다.
 > v2의 제품 정의(§1), 시스템 아키텍처(§2), Multi-LLM 전략(§3)은 그대로 유효하며,
 > v3는 그 위에 **Akai(by Deel) 스타일의 운영 자동화(Agentic Operations) 기능**을 추가한다.
-> 구현/빌드는 본 PRD 범위가 아니다. 본 문서는 설계 합의를 위한 것이다.
+> 구현/빌드는 본 PRD 범위가 아니며, v3 빌드 순서·verify 게이트는 `PLAN.md §5` /
+> `checklist.md` Phase 11~17 / `CLAUDE.md` Loop 7에 materialize되어 있다(SSOT 동기화 완료).
+
+## 0-A. v3.1 변경 이력 (Changelog from v3.0)
+- **개발 동기화 반영.** v3 플랜이 markdown SSOT로 구체화됨(`CLAUDE.md` Loop 7, `PLAN.md` §5, `checklist.md` Phase 11~17).
+  포트(`workflow-svc` 8006), 오케스트레이션→workflow-svc **내부 write API**, MVP 마이그레이션 `000008`의 **실제 범위(3테이블)** 를 본문에 정합.
+- **신규 기능 — Google Workspace 파일 생성.** 멀티에이전트 협업 결과물(런 최종/단계 아티팩트)을
+  **Google Workspace(Docs/Sheets/Slides/Drive) 파일로 자동 생성**하는 **Output/Export 커넥터**를 추가(§3·§5·§6·§7·§10·§11·§13).
+
 # 0. 변경 개요 (What's New in v3)
 v2는 단발성(single-shot) 에이전트와 카탈로그·거버넌스·계량을 완성했다(Phase 0~10 완료).
 그러나 **여러 단계를 잇고, 여러 에이전트가 서로 핸드오프하며, 실행할수록 똑똑해지는** 운영 워크플로우는 없다.
 v3는 이 공백을 메우는 단일 능력 묶음 **Forgenta Agentic Operations(코드네임: Workflow Fabric)** 를 도입한다.
-핵심 추가 5종:
+핵심 추가 6종:
 1. 자연어/시연 기반 **워크플로우 작성**(Describe-once / Record-once → 단계 자동 매핑).
 2. 여러 에이전트가 **공유 컨텍스트로 핸드오프**하며 종단까지 실행되는 **워크플로우 런타임**.
 3. 단계별 **휴먼-인-더-루프 승인**(review & approve every step).
 4. API 유무와 무관하게 외부 시스템에 접속하는 **커넥터(Connectors)**.
 5. 실행 결과를 축적해 **연속 개선(Continuous Improvement)** 하고 **이상 탐지·알림(Anomaly & Alerting)** 을 수행하는 학습 루프.
+6. 멀티에이전트 **협업 결과물을 Google Workspace 파일로 생성**(Docs/Sheets/Slides/Drive) 하는 **Output/Export 커넥터**(OAuth 기반, 커넥터 #4의 특화 인스턴스). 결과가 플랫폼 안에만 머물지 않고 사용자의 실제 업무 도구로 산출되게 한다.
 # 1. 배경 & 영감 — Akai 분석과 갭(Gap)
 ## 1.1 Akai(by Deel)는 어떻게 동작하는가
 출처: https://www.akai.run/ (2026-05-06 게시). 운영팀(ops)을 위한 에이전트 플랫폼으로,
@@ -50,7 +59,8 @@ v2 엔티티(agent/app/prompt_template/artifact/approval/audit_log/usage_event)�
 - **Workflow Step**: 한 단계. `agent`/`prompt_template`/`connector`/`tool` 중 하나에 바인딩. 입력/출력 매핑, `requires_approval`, `on_error`(retry/skip/halt), 핸드오프 대상 정의.
 - **Workflow Run**: 실행 인스턴스. 상태(pending/awaiting_approval/running/succeeded/failed/cancelled), 트리거(manual/scheduled/event), 공유 컨텍스트(blackboard), 요약.
 - **Workflow Step Run**: 단계 실행 기록. 입력/출력(아티팩트 참조), 모델/토큰/지연, 오류, 승인 참조.
-- **Connector**: 외부 시스템 접속 단위. 종류 `http_api`/`mcp`/`browser`/`db`. 비밀이 아닌 설정은 JSONB, 자격증명은 **secret 참조만** 저장("API 유무 무관 접근").
+- **Connector**: 외부 시스템 접속 단위. 종류 `http_api`/`mcp`/`browser`/`db`/`gworkspace`. 비밀이 아닌 설정은 JSONB, 자격증명은 **secret 참조만** 저장("API 유무 무관 접근"). `gworkspace`는 OAuth 토큰(refresh token)을 secret 참조로 보관하는 출력형 커넥터.
+- **Output Target(Export)**: 단계/런 산출물을 외부 파일로 **생성**하는 출력 바인딩. 1차 타깃은 **Google Workspace**(Google Docs/Sheets/Slides/Drive). 생성 결과는 `external_file_ref`(provider/file_id/url/mime)로 기록해 아티팩트(`artifact-svc`)와 양방향 연결한다. 입력형 커넥터(데이터 가져오기)와 대비되는 **결과 산출** 경로.
 - **Workflow Schedule**: cron 식 반복 트리거(예: 정산 리포트 정기 생성).
 - **Workflow Memory(Learning Store)**: 실행 결과·교정·성공 패턴 누적. Qdrant 임베딩과 결합해 차기 컴파일/실행에 RAG로 주입("실행할수록 똑똑해짐").
 - **Alert / Anomaly**: 실행 중 탐지된 이상치/예외와 알림 규칙·이벤트.
@@ -62,6 +72,7 @@ v2 엔티티(agent/app/prompt_template/artifact/approval/audit_log/usage_event)�
 - Run end-to-end, hand off, share context → **Workflow Runtime**(LangGraph 다중 노드 + blackboard). (`orchestration-svc` 확장)
 - Gets smarter every run → **Workflow Memory + Qdrant RAG 학습 루프**.
 - Any system, with/without API → **Connectors**(http_api/mcp/browser-Playwright/db).
+- Deliver results into the user's tools → **Output/Export 커넥터**: 협업 결과물을 **Google Workspace 파일**(Docs/Sheets/Slides/Drive)로 생성(`gworkspace` 커넥터 + 아티팩트 export).
 - Compliance & security → 감사 로그 확장 + 커넥터 자격증명 암호화 + RBAC 스코프 + HITL + 알림.
 - Catch everything (anomalies) → **Anomaly/Critic 노드 + Alert 규칙/이벤트**.
 - Scale without headcount → 다중 런 동시성 + **Schedule** 기반 무인 실행.
@@ -78,22 +89,27 @@ v2 엔티티(agent/app/prompt_template/artifact/approval/audit_log/usage_event)�
 - **Critic/Anomaly 노드**: 단계 출력 검증 + 이상치 플래그 → `governance` 알림. (편향 분리 위해 Critic은 클라우드 모델 우선, v2 §3.2 정책 계승)
 - **Summarizer 노드**: 런 종료 시 요약 + 학습 메모 작성.
 - **Connector Tool 노드**: MCP Gateway/HTTP/Playwright/DB 도구 실행. MCP는 v2 §2.3[3]에 이미 내장 명시. 도구 실패는 그래프 전체를 멈추지 않음(CLAUDE.md §8.3 fault-tolerant 계승).
+- **Output/Export 노드(Google Workspace)**: 런 최종(또는 지정 단계) 산출물을 `gworkspace` 커넥터로 Google Workspace 문서로 생성. 마크다운/표/슬라이드 구조 → Docs/Sheets/Slides 매핑. 생성된 파일의 `file_id`/`url`을 SSE(`export_done`)와 `external_file_ref`로 반환. 출력 단계도 `requires_approval` 게이팅 가능(외부 산출 전 사람 확인).
 - **학습 훅**: 런 종료 시 결과·교정을 `workflow_memory`와 Qdrant에 기록.
 ## 5.3 기존 서비스 확장
 - **governance-svc**: ① `approval`을 단계 게이팅에 사용(`resource_type='workflow_step_run'`, 승인 시 런 resume). ② `alert`/`alert_rule` 인입·조회 추가. ③ 워크플로우 생애주기 감사(workflow.compiled/approved/run.started/step.approved 등).
 - **identity-svc**: 커넥터 자격증명 암호화 정책, 워크플로우 작성/승인/실행 **RBAC 스코프**(author/approver/runner) 추가.
 - **headroom-proxy**: 단계 간 누적되는 공유 컨텍스트를 압축(장기 실행 워크플로우 토큰 폭증 방지). 기존 `HEADROOM_ENABLED` 연동 확장.
-- **artifact-svc**: 각 단계 산출물을 아티팩트로 저장, 런 최종 산출물(예: 정산 리포트) 생성/조회. 멀티모달 스펙 그대로 사용.
+- **artifact-svc**: 각 단계 산출물을 아티팩트로 저장, 런 최종 산출물(예: 정산 리포트) 생성/조회. 멀티모달 스펙 그대로 사용. **Google Workspace export 시** 아티팩트와 외부 파일(`external_file_ref`: Drive file_id/url/mime)을 연결해 양방향 추적(아티팩트 ↔ Google 문서).
 ## 5.4 데이터 계층
 신규 테이블은 `forgenta-infra`의 PostgreSQL(pgvector+TimescaleDB)에 추가. 학습 임베딩은 Qdrant. 런/스텝 시계열 집계는 기존 `usage_event` 하이퍼테이블과 연계.
 # 6. 데이터 모델 (신규 마이그레이션 제안: 000008~)
 v2 스키마(000001~000007)에 이어 신규 마이그레이션으로 추가(golang-migrate, in-cluster Job 패턴 유지).
+> **MVP 범위 정합(개발 동기화).** 1차 마이그레이션 `000008_workflow`는 **3테이블만** 생성한다 —
+> `workflow` / `workflow_run` / `workflow_step_run`(`checklist.md` Phase 11). 아래 `connector`(`gworkspace` 포함)·
+> `workflow_schedule`·`workflow_memory`·`alert(_rule)`는 **후속 마이그레이션**(Phase 15~17)에서 추가하는 제안 스키마다.
+> 단계 정의는 별도 테이블 없이 `workflow.spec` JSONB에 임베드(아래 `workflow_step`는 정규화 옵션).
 - `workflow`: id, workspace_id(FK), name, description, spec JSONB(단계 DAG), source(`described`|`recorded`), status(`draft`|`active`|`archived`), version INT, created_by, created_at, updated_at.
 - `workflow_step`(선택: spec 정규화 시): id, workflow_id(FK), seq, kind(`agent`|`prompt`|`connector`|`tool`), ref_id, io_map JSONB, requires_approval BOOL, on_error TEXT, handoff_to UUID.
   - 1차 구현은 `agent.config` JSONB 선례를 따라 단계를 `workflow.spec`에 임베드, 정규화 테이블은 후속 옵션으로 명시.
 - `workflow_run`: id, workflow_id(FK), workspace_id, status, trigger(`manual`|`scheduled`|`event`), context JSONB(blackboard), summary TEXT, started_at, finished_at.
-- `workflow_step_run`: id, run_id(FK), step_seq, kind, agent_id, status, input JSONB, output_artifact_id UUID, prompt_tokens, completion_tokens, latency_ms, error TEXT, approval_id UUID.
-- `connector`: id, workspace_id(FK), kind(`http_api`|`mcp`|`browser`|`db`), name, config JSONB(비밀 제외), secret_ref TEXT(k8s Secret/외부 볼트 참조), status, created_by, created_at.
+- `workflow_step_run`: id, run_id(FK), step_seq, kind, agent_id, status, input JSONB, output_artifact_id UUID, **external_file_ref JSONB(export 결과: provider/file_id/url/mime, nullable)**, prompt_tokens, completion_tokens, latency_ms, error TEXT, approval_id UUID.
+- `connector`: id, workspace_id(FK), kind(`http_api`|`mcp`|`browser`|`db`|`gworkspace`), name, config JSONB(비밀 제외; `gworkspace`는 OAuth client_id/scopes/대상 Drive 폴더 등), secret_ref TEXT(k8s Secret/외부 볼트 참조; `gworkspace`는 OAuth refresh token), status, created_by, created_at.
 - `workflow_schedule`: id, workflow_id(FK), cron TEXT, timezone TEXT, enabled BOOL, next_run_at, created_by.
 - `workflow_memory`: id, workflow_id(FK), run_id, kind(`success_pattern`|`correction`|`feedback`), content TEXT, embedding(pgvector 또는 Qdrant 참조), created_at.
 - `alert_rule`: id, workspace_id, name, condition JSONB, severity, enabled. `alert`: id, workspace_id, run_id, rule_id, severity, message, status(`open`|`ack`|`resolved`), created_at.
@@ -110,8 +126,16 @@ DELETE /v1/workflows/{id}            삭제
 POST   /v1/workflows/{id}/clone      복제(+clone_lineage, 카탈로그와 동일 계보)
 GET    /v1/workflows/{id}/runs       런 목록
 GET    /v1/runs/{run_id}             런 상세(스텝 타임라인)
-GET    /v1/connectors | POST /v1/connectors | ...   커넥터 CRUD
+GET    /v1/connectors | POST /v1/connectors | ...   커넥터 CRUD (gworkspace 포함)
 POST   /v1/schedules | GET /v1/schedules            스케줄 CRUD
+# ── 오케스트레이션 전용 내부 write API(개발 동기화; 게이트웨이 외부 노출 안 함) ──
+POST   /v1/runs                      런 레코드 생성
+PATCH  /v1/runs/{id}                 런 상태/요약 갱신
+POST   /v1/runs/{id}/steps           step_run 기록 생성
+PATCH  /v1/steps/{id}                step_run 갱신(상태/출력/external_file_ref)
+# ── Google Workspace 커넥터(OAuth) ──
+GET    /v1/connectors/gworkspace/oauth/url     OAuth 동의 URL 발급(scope=drive.file 등)
+GET    /v1/connectors/gworkspace/oauth/callback OAuth 콜백 → refresh token을 secret_ref로 보관
 ```
 오케스트레이션(`orchestration-svc`, SSE):
 ```text
@@ -119,6 +143,9 @@ POST /api/orchestration/v1/workflows/compile      NL 설명(+녹화) → 초안 
 POST /api/orchestration/v1/workflows/{id}/run     런 시작 (SSE: step/token/handoff/anomaly/done)
 POST /api/orchestration/v1/runs/{run_id}/resume   승인 후 재개
 POST /api/orchestration/v1/runs/{run_id}/cancel   취소
+POST /api/orchestration/v1/runs/{run_id}/export   협업 결과물 → Google Workspace 파일 생성
+                                                  (body: target=gworkspace, format=doc|sheet|slide|drive,
+                                                   artifact_id?; SSE: export_start/export_done{file_id,url})
 ```
 거버넌스(`governance-svc`, 기존 승인 재사용 + 알림 신규):
 ```text
@@ -130,7 +157,7 @@ POST /v1/alerts | GET /v1/alerts | POST /v1/alerts/{id}/ack    이상/알림
 - **공유 컨텍스트(Blackboard)**: 런 단위 JSONB 컨텍스트를 단계 간 전달. 각 단계는 읽기/쓰기로 핸드오프. 누적 컨텍스트는 `headroom-proxy`로 압축 후 다음 단계 LLM에 투입.
 - **핸드오프**: 단계 spec의 `handoff_to`/출력 매핑에 따라 다음 노드로 결과 전달. 동일 `router`/`providers` 재사용으로 단계별 Multi-LLM 라우팅·폴백 유지.
 - **단계 승인 게이팅**: `requires_approval=true` 단계는 `awaiting_approval`로 정지 → `governance` 승인 큐 생성 → 승인 시 `/runs/{id}/resume`로 재개, 거부 시 `on_error` 정책 적용.
-- **SSE 이벤트 타입**: `meta`(체인/계획), `step_start`, `token`, `handoff`, `step_done`, `approval_required`, `anomaly`, `fallback`, `done`. 기존 `_sse()` 헬퍼(`app/main.py`) 패턴 계승.
+- **SSE 이벤트 타입**: `meta`(체인/계획), `step_start`, `token`, `handoff`, `step_done`, `approval_required`, `anomaly`, `fallback`, `export_start`, `export_done`(file_id/url), `done`. 기존 `_sse()` 헬퍼(`app/main.py`) 패턴 계승.
 - **계량/감사**: 각 단계 종료 시 `usage_event` 기록(기존 `integrations.record_usage` 확장, `agent_id`에 더해 `run_id`/`step_seq` 귀속). 생애주기 이벤트는 `audit_log`.
 - **내결함성**: 단계 실패 시 폴백 체인 → `on_error`(retry/skip/halt). 커넥터/도구 실패는 그래프 전체를 멈추지 않음(CLAUDE.md §8 계승).
 # 9. 연속 학습 (Continuous Improvement)
@@ -142,6 +169,7 @@ POST /v1/alerts | GET /v1/alerts | POST /v1/alerts/{id}/ack    이상/알림
 # 10. 거버넌스 · 보안 · 컴플라이언스
 - **휴먼-인-더-루프**: 단계 승인 + 런 시작 전 전체 plan 승인(STEP 2 "approve every step").
 - **자격증명 암호화**: 커넥터 비밀은 `secret_ref`만 저장, 실제 값은 k8s Secret/외부 볼트. 로그/응답에 평문 비밀 금지(시스템 시크릿 처리 원칙).
+- **Google Workspace OAuth(최소 권한)**: 기본 스코프는 `drive.file`(앱이 생성한 파일만 접근, 사용자 전체 Drive 접근 금지). refresh token은 `secret_ref`로만 보관, 토큰/응답 평문 노출 금지. export는 작성·승인된 산출물에 한해 실행하고 `audit_log`에 `connector.gworkspace.export`로 기록(생성 file_id/url 포함).
 - **RBAC 스코프**: author(작성)·approver(승인)·runner(실행) 분리, `identity-svc` 역할 확장.
 - **감사 추적**: 컴파일/승인/실행/단계승인/커넥터 사용 전부 `audit_log`.
 - **이상 탐지·알림**: Critic/Anomaly 노드 + `alert_rule`로 예외/이상치/패턴 감지, 실시간 알림.
@@ -149,8 +177,8 @@ POST /v1/alerts | GET /v1/alerts | POST /v1/alerts/{id}/ack    이상/알림
 # 11. 프론트엔드 (web) 변경
 신규 네비/페이지(기존 Mantine AppShell + react-router 패턴, `web/src/components/Layout.tsx`/`App.tsx` 확장):
 - **Workflows** (`/workflows`): 목록 + 빌더. 빌더는 "워크플로우를 설명하세요" 입력 → SSE로 단계 계획 스트리밍 → 단계 검토/편집/승인 → 저장. (선택)Record 모드는 시연 캡처 자리표시. SEARCH-BEFORE-BUILD: 기존 워크플로우 먼저 검색.
-- **Runs** (`/runs`): 런 목록 + 런 상세(단계 타임라인, 핸드오프 그래프, 공유 컨텍스트 뷰, 단계 출력, 승인/거부 게이트, 이상/알림). STREAM-FIRST: 라이브 SSE.
-- **Connectors** (`/connectors`): 커넥터 등록(HTTP/MCP/browser/db), 자격증명은 쓰기 전용(secret 참조).
+- **Runs** (`/runs`): 런 목록 + 런 상세(단계 타임라인, 핸드오프 그래프, 공유 컨텍스트 뷰, 단계 출력, 승인/거부 게이트, 이상/알림). STREAM-FIRST: 라이브 SSE. 런 상세의 최종 산출물에 **"Google Workspace로 내보내기"**(Docs/Sheets/Slides/Drive 선택) 액션 — 생성된 파일 링크를 인라인 표시.
+- **Connectors** (`/connectors`): 커넥터 등록(HTTP/MCP/browser/db), 자격증명은 쓰기 전용(secret 참조). **Google Workspace 연결**은 OAuth 동의 플로우(연결됨/만료 상태 표시, 대상 Drive 폴더 선택).
 - **Admin 확장**: 알림 인박스, 스케줄, 워크플로우 감사, 개선 지표(성공률·절감 시간 추세).
 5대 원칙 적용은 §12 참조.
 # 12. 5대 설계 원칙 적용 (v2 §1.3 계승)
@@ -160,12 +188,12 @@ POST /v1/alerts | GET /v1/alerts | POST /v1/alerts/{id}/ack    이상/알림
 - TRANSPARENCY: 단계별 모델/토큰/지연/절감, 어떤 커넥터·승인자·이상치가 관여했는지 항상 노출.
 - PROGRESSIVE DISCLOSURE: 기본은 "설명→실행", 단계 편집·라우팅·on_error 등 고급 설정은 필요 시 노출.
 # 13. 단계별 도입 (Phasing) & MVP 슬라이스
-기존 checklist Phase 0~10에 이어 Phase 11~로 확장(각 Phase는 verify 게이트, Loop Harness 계승). **빌드는 본 PRD 범위 밖**이며 아래는 합의용 순서다.
+기존 checklist Phase 0~10에 이어 Phase 11~로 확장(각 Phase는 verify 게이트, Loop Harness 계승). **빌드는 본 PRD 범위 밖**이며 아래는 합의용 순서다. 빌드 실행 순서·verify는 `PLAN.md §5` / `checklist.md` Phase 11~17 / `CLAUDE.md` Loop 7에 동기화됨(현재 go-신호 대기).
 - Phase 11 — 데이터/서비스 골격: 신규 마이그레이션(000008~) + `workflow-svc` 스캐폴드 + 게이트웨이 `/api/workflow/` 라우트.
 - Phase 12 — Compiler(수직 슬라이스 핵심): NL 설명 → `workflow.spec` 컴파일(SSE), 검토/저장.
 - Phase 13 — Workflow Runtime: 공유 컨텍스트 핸드오프 + 다단계 순차 실행 + 단계 SSE + 런/스텝 영속화 + 최종 아티팩트.
 - Phase 14 — 단계 승인(HITL): `awaiting_approval`/resume, 거버넌스 승인 큐 결합.
-- Phase 15 — Connectors: HTTP/MCP 우선(Playwright 브라우저는 후속), 자격증명 secret 참조.
+- Phase 15 — Connectors + **Google Workspace 파일 생성**: ① `connector` 테이블(`gworkspace` 포함) + OAuth 연결(scope=drive.file). ② Output/Export 노드 + `POST /v1/runs/{id}/export`로 협업 결과물을 Google Docs/Sheets/Slides/Drive 파일로 생성, `external_file_ref` 기록. ③ HTTP/MCP 입력 커넥터 동반(Playwright 브라우저는 후속). **verify:** OAuth 연결 → 2단계 런 산출물을 Google Doc/Sheet로 생성 → file_id/url 반환 + 아티팩트 연결 + audit 기록.
 - Phase 16 — 학습 루프 + 이상탐지/알림: `workflow_memory`+Qdrant, alert 규칙.
 - Phase 17 — 스케줄 + 무인 실행 + 프론트 Runs/Workflows/Connectors 페이지.
 **MVP(권장 최소 슬라이스)**: Phase 11~14 — "설명→컴파일→검토/승인→다중 에이전트 순차 실행(공유 컨텍스트, SSE)→단계 승인→최종 아티팩트". 
@@ -182,7 +210,11 @@ POST /v1/alerts | GET /v1/alerts | POST /v1/alerts/{id}/ack    이상/알림
 - Compiler/Runtime 모델: 플래너에 클라우드(고품질) 우선 vs 로컬 기본(비용/민감도) — v2 §3.3 정책 위에서 워크플로우별 오버라이드 허용 여부.
 - 스케줄러 구현: in-cluster CronJob vs `workflow-svc` 내부 타이머.
 - 브라우저 커넥터(Playwright) 격리/보안 모델(런타임 분리 필요).
+- Google Workspace 인증 방식: **사용자 단위 OAuth(`drive.file`)**(권장, 최소 권한) vs 서비스 계정+도메인 와이드 위임(조직 일괄, 권한 광범위). 1차는 OAuth 권장.
+- export 대상 앱 우선순위: Docs/Sheets 우선 vs Slides/Drive 동시. 산출물 구조(마크다운/표/슬라이드) → 앱 매핑 규칙 확정 필요.
+- export 동작: 항상 **신규 파일 생성** vs 기존 파일 갱신(append/update) 허용 여부. 토큰 만료/리프레시 실패 시 런 처리(halt vs 아티팩트만 보존).
 # 16. 비고
-- 본 문서는 **설계 전용**이며 코드/이미지 빌드를 수행하지 않는다("빌드는 하지 말고").
+- 본 문서는 **설계 전용**이며 코드/이미지 빌드를 수행하지 않는다("빌드는 하지 말고"). 단, v3 플랜은 `PLAN.md §5` / `checklist.md` Phase 11~17 / `CLAUDE.md` Loop 7로 materialize되어 빌드 go-신호만 대기 중이다.
+- Google Workspace 연동은 **출력형 커넥터**(`gworkspace`)로 모델링되어 별도 도메인이 아니라 Connector/artifact-svc 자산을 재사용한다. 실제 API(Google Docs/Sheets/Slides/Drive)·OAuth 클라이언트 등록은 Phase 15 구현 단계에서 확정한다.
 - 모델 표기는 v2 §3을 따른다(`ollama/qwen3:8b`, `claude-3-7-sonnet`, `gemini-2.5-pro` 등). 신규 서비스/엔드포인트/테이블 명칭은 제안이며 구현 단계에서 확정한다.
 - v1.x 상세 산출물(ERD/와이어프레임/API 명세)은 `docs/prd/아카이브.zip` 참조. v3 정합성은 본 PRD + PRD v2 + `CLAUDE.md` 우선.

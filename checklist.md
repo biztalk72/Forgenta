@@ -90,3 +90,35 @@
 - [x] bug fix: integration-test 포트 경합(8000 Docker 점유) 플레이키 → 18080 + /health 폴링으로 수정
 - [ ] Prometheus 메트릭 → 후속 (서비스 /metrics 계측 필요). 현재 obs는 로그 중심.
 - [ ] OTel 트레이싱 → 후속
+
+# Forgenta v3 체크리스트 (Workflow Fabric — PLAN.md §5 / CLAUDE.md Loop 7 매핑)
+> v3 MVP = Phase 11~14. PRD: `docs/prd/Forgenta PRD v3.md`. Warp 플랜 `plan_id e7a37d0d`.
+
+## Phase 11 — v3 데이터 파운데이션 (Loop 2 확장)
+- [ ] `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow` / `workflow_run` / `workflow_step_run`
+- [ ] 인덱스 (workspace별 목록, run별 step 조회)
+- [ ] verify: `make migrate` 후 신규 3 테이블 + migration version 8 clean
+
+## Phase 12 — workflow-svc + Compiler (Loop 3 확장)
+- [ ] `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`entity_type='workflow'`)
+- [ ] 내부 write API: `POST /v1/runs`, `PATCH /v1/runs/{id}`, `POST /v1/runs/{id}/steps`, `PATCH /v1/steps/{id}`
+- [ ] 게이트웨이 `/api/workflow/` 서브트리 프록시 + `WORKFLOW_URL` / go.work / Helm(`workflow.*`,8006) / `workflow-svc.yaml` / build-images.sh
+- [ ] orchestration `app/compiler.py` + `POST /v1/workflows/compile` (SSE plan/step)
+- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 유효 spec
+
+## Phase 13 — Workflow Runtime (Loop 3/4)
+- [ ] orchestration `app/runtime.py`: 단계 실행(ModelRouter+providers.stream 재사용) + blackboard context handoff
+- [ ] `POST /v1/workflows/{id}/run`(SSE) + `POST /v1/runs/{id}/cancel`, 누적 컨텍스트 headroom 압축
+- [ ] 단계 종료마다 workflow-svc step write + governance usage 기록
+- [ ] verify: 2단계 run → step_run 2건 + context handoff + done 이벤트
+
+## Phase 14 — 단계 승인 HITL (Loop 3e/4)
+- [ ] governance approval 재사용(`resource_type='workflow_step_run'`) + audit 컨텍스트
+- [ ] `awaiting_approval` 정지 → `POST /v1/runs/{id}/resume` 재개 / reject halt
+- [ ] 프론트 `/workflows`+`/runs`(검색·compile·타임라인·live SSE·approve/reject/resume), `lib/stream` 확장
+- [ ] verify: approval 생성/정지 → approve resume, reject halt + integration/e2e 워크플로우 플로우 추가
+
+## Phase 15~17 — 후속 증분 (MVP 이후)
+- [ ] Phase 15 — Connectors + Google Workspace 파일 생성: `connector`(`gworkspace`/HTTP/MCP, `secret_ref`) + OAuth(scope=drive.file) + Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive, `external_file_ref`/audit). Playwright는 격리 모델 확정 후
+- [ ] Phase 16 — 학습/이상탐지: `workflow_memory`+Qdrant RAG, `alert`/`alert_rule`
+- [ ] Phase 17 — 스케줄/UI: `workflow_schedule`+스케줄러, `/connectors`, Admin 관측/알림/개선지표
