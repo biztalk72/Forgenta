@@ -178,6 +178,39 @@
   카탈로그 엔드포인트+UI ③ Prometheus 메트릭(서비스 /metrics 계측) ④ 클라우드 LLM 실제 연동 ⑤ OIDC/SAML ⑥ k8s Secret 전환.
 - **`.env.example`:** 여전히 미생성(내장 시크릿 가드). 사용자가 `!` heredoc로 생성 필요.
 
+## ★ V3 PLANNING SNAPSHOT (2026-06-20) — Akai 벤치마킹: PRD v3 + 구현 플랜 (빌드 없음)
+- **요청.** akai.run 분석 → 유사 기능을 Forgenta에 추가 → "PRD v3으로 업데이트", 빌드 금지.
+- **Akai 핵심(파악).** "Show once" 운영 자동화: 자연어/시연으로 워크플로우 작성 → 단계 자동 매핑·커넥터 생성 →
+  사람이 단계 검토/승인 → 다중 에이전트가 **공유 컨텍스트로 핸드오프**하며 종단 실행 → 실행할수록 학습.
+  차별점: HITL, 커넥터(API 유무 무관), 감사/RBAC/자격증명 암호화, 이상탐지/실시간 알림.
+- **산출물 1 — PRD v3.** `docs/prd/Forgenta PRD v3.md` 생성(git tracked, v2 상위호환). 신규 능력
+  **Agentic Operations(코드네임 Workflow Fabric)**: ① NL/시연 워크플로우 작성 ② 공유 컨텍스트 핸드오프 런타임
+  ③ 단계별 HITL 승인 ④ 커넥터 ⑤ 연속 학습+이상탐지. 실제 코드 매핑(orchestration router→executor, catalog 패턴,
+  governance approval, usage_event, gateway stripProxy). 마이그레이션/엔드포인트/테이블/프론트/Phase 11~17/KPI 포함.
+- **산출물 2 — 구현 플랜.** Warp 플랜 아티팩트 plan_id `e7a37d0d-68af-42b1-9434-8576305b7a99`.
+  1차 범위 = PRD v3 §13 MVP(**Phase 11~14**): 000008 마이그레이션(workflow/workflow_run/workflow_step_run) ·
+  신규 **workflow-svc**(Go, 포트 8006, catalog-svc 패턴) · orchestration `compiler.py`/`runtime.py` +
+  `/v1/workflows/compile|run`·`/v1/runs/{id}/resume|cancel` SSE · governance approval 재사용
+  (`resource_type='workflow_step_run'`) · gateway `/api/workflow/` 라우트 + go.work/Helm/build-images 배선 ·
+  프론트 `/workflows`+`/runs`.
+- **오케스트레이션 설정(검토 확정).** orchestration config = **local**, 자식 에이전트 **4개**(wf-svc/orch-ext/gov-ext/frontend),
+  실행 순서 = **Foundation 순차 → 이후 병렬** → 단일 PR. 모델/하니스는 기본 상속.
+  Foundation 내용: 000008 마이그레이션 + API/SSE 계약 + workflow-svc skeleton + gateway 라우트 + go.work/Helm/build 자리.
+- **세션 진행(2026-06-20).** resume 후 사용자가 '플랜 먼저 수정' → '오케스트레이션' 영역 선택 → 3항목 모두 현재 설계와 동일로 **변경 없이 확정**.
+  플랜 `## Launch config`에 확정 사실 명시(plan edit 완료). 그 외 섹션(범위/데이터모델/서비스설계/HITL)은 미변경.
+- **상태.** 문서·플랜만 작성. **코드 변경/빌드 없음.** 기존 빌드 상태는 위 RESUME SNAPSHOT(전체 10단계 완료) 그대로 유효.
+- **★ RESUME 지점.** 오케스트레이션 검토·확정 완료. 현재 **사용자 실행 go 신호 대기**(또는 다른 영역 수정 요청).
+  실행 시: ① Foundation부터 실행 → ② `run_agents`로 4개 에이전트 fan-out(`plan_id` e7a37d0d 사용) →
+  ③ `make images`/`make deploy-core` + integration/e2e 검증. 플랜 본문은 Warp 플랜(plan_id)에서 조회.
+
+### 2026-06-20 — 피커 정리 + Admin 에이전트별 사용량 (별도 세션 작업)
+- **피커 정리.** 테스트 에이전트 8개(Shouty/e2e-src*/Summarizer*/test) 삭제 후 실예시 3개 시드
+  (요약가/번역가/코드리뷰어, config.system_prompt 포함). 런타임 데이터 변경(커밋 아님).
+- **에이전트별 사용량.** governance에 `GET /v1/usage/by-agent` 추가(usage_event LEFT JOIN agent,
+  agent_id 없음/삭제 → '(general)'). Admin 페이지에 "Usage by Agent" 테이블 추가. governance+web 재빌드/재배포.
+- **검증.** by-agent: 코드리뷰어 1건 + (general) 16건. 피커 3개. web 빌드/테스트, go vet 통과.
+- **주의.** 이 세션 작업은 위 'V3 PLANNING SNAPSHOT'(병렬 세션의 문서/플랜)와 독립. 그 스냅샷은 보존됨.
+
 ## 결정 대기 (Open — 빌드 중 확정 필요)
 
 1. **수직 슬라이스 최소 범위.** Phase 3(Identity+Gateway)를 슬라이스에 포함할지, 아니면
