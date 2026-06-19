@@ -213,7 +213,7 @@
 - **⚠ 스택 충돌 결정.** DESIGN.md는 shadcn/ui+Tailwind+Next 편향. 그러나 본 레포 web = **React+Vite+Mantine 7**(Tailwind/shadcn 없음).
   **결정: 마이그레이션하지 않고 DESIGN.md 원칙을 Mantine에 매핑**(원칙은 라이브러리 무관, 기존 design system 재사용이 DESIGN.md 우선순위 #2).
   근거: 동작하는 Mantine 앱을 문서 때문에 재작성하는 건 surgical 원칙 위반. shadcn 편향은 "신규 React/Tailwind 프로젝트 한정"으로 조건부.
-  **사용자 override 시** 별도 마이그레이션 Phase 필요(현재 비목표). → 결정 대기 후보.
+  **✅ 사용자 확정(2026-06-20): Mantine 유지.** shadcn/Tailwind 전환은 비목표(향후 원할 시 별도 마이그레이션 Phase 필요). 결정 종결.
 - **빌드 배선.** ① `CLAUDE.md` §3.5 신설(DESIGN.md 준수 + Mantine 매핑 규칙) + Loop 5 verify에 DESIGN 항목 추가.
   ② `PRD v3 §11`에 DESIGN.md 준수 명시. ③ `PLAN.md §5` Phase 14 프론트 라인 + Phase 15 커넥터 동기화(v3.2 반영).
   ④ `checklist.md` Phase 14에 DESIGN.md 준수 체크 추가.
