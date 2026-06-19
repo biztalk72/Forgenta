@@ -14,13 +14,22 @@ interface Approval {
   resource_type: string
   status: string
 }
+interface AgentUsage {
+  agent: string
+  events: number
+  prompt_tokens: number
+  completion_tokens: number
+  tokens_saved: number
+}
 
 export default function AdminPage() {
   const [sum, setSum] = useState<Summary | null>(null)
+  const [byAgent, setByAgent] = useState<AgentUsage[]>([])
   const [approvals, setApprovals] = useState<Approval[]>([])
 
   async function load() {
     setSum(await apiGet<Summary>('/governance/v1/usage/summary'))
+    setByAgent(await apiGet<AgentUsage[]>('/governance/v1/usage/by-agent'))
     setApprovals(await apiGet<Approval[]>('/governance/v1/approvals'))
   }
   useEffect(() => { load() }, [])
@@ -39,6 +48,30 @@ export default function AdminPage() {
         <Stat label="Completion tokens" value={sum?.completion_tokens} />
         <Stat label="Tokens saved (Headroom)" value={sum?.tokens_saved} />
       </SimpleGrid>
+
+      <Title order={4} mt="md">Usage by Agent</Title>
+      <Table striped withTableBorder>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Agent</Table.Th><Table.Th>Events</Table.Th>
+            <Table.Th>Prompt tok</Table.Th><Table.Th>Completion tok</Table.Th><Table.Th>Tokens saved</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {byAgent.map((u) => (
+            <Table.Tr key={u.agent}>
+              <Table.Td>{u.agent}</Table.Td>
+              <Table.Td>{u.events}</Table.Td>
+              <Table.Td>{u.prompt_tokens}</Table.Td>
+              <Table.Td>{u.completion_tokens}</Table.Td>
+              <Table.Td>{u.tokens_saved}</Table.Td>
+            </Table.Tr>
+          ))}
+          {byAgent.length === 0 && (
+            <Table.Tr><Table.Td colSpan={5}><Text c="dimmed" ta="center">사용량 없음</Text></Table.Td></Table.Tr>
+          )}
+        </Table.Tbody>
+      </Table>
 
       <Title order={4} mt="md">Approval Queue</Title>
       <Table withTableBorder>

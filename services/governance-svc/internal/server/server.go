@@ -20,6 +20,7 @@ func userID(r *http.Request) string { return r.Header.Get("X-User-Id") }
 func (s *Server) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/usage", s.ingestUsage)
 	mux.HandleFunc("GET /v1/usage/summary", s.usageSummary)
+	mux.HandleFunc("GET /v1/usage/by-agent", s.usageByAgent)
 	mux.HandleFunc("POST /v1/approvals", s.createApproval)
 	mux.HandleFunc("GET /v1/approvals", s.listApprovals)
 	mux.HandleFunc("POST /v1/approvals/{id}/decide", s.decideApproval)
@@ -78,6 +79,41 @@ func (s *Server) usageSummary(w http.ResponseWriter, r *http.Request) {
 		"events": events, "prompt_tokens": prompt, "completion_tokens": completion,
 		"tokens_saved": saved,
 	})
+}
+
+// usageByAgent은 usage_event를 agent별로 집계한다 (agent_id 없거나 삭제된 경우 '(general)').
+func (s *Server) usageByAgent(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.Pool.Query(r.Context(),
+		`SELECT coalesce(a.name, '(general)') AS agent,
+		        count(*) AS events,
+		        coalesce(sum(ue.prompt_tokens),0),
+		        coalesce(sum(ue.completion_tokens),0),
+		        coalesce(sum(ue.original_tokens - ue.compressed_tokens),0)
+		   FROM usage_event ue
+		   LEFT JOIN agent a ON a.id = ue.agent_id
+		  WHERE ue.workspace_id = $1
+		  GROUP BY a.name
+		  ORDER BY events DESC`, wsID(r))
+	if err != nil {
+		httperr.Write(w, http.StatusInternalServerError, "query failed")
+		return
+	}
+	defer rows.Close()
+	out := []map[string]any{}
+	for rows.Next() {
+		var agent string
+		var events int
+		var prompt, completion, saved int64
+		if err := rows.Scan(&agent, &events, &prompt, &completion, &saved); err != nil {
+			httperr.Write(w, http.StatusInternalServerError, "scan failed")
+			return
+		}
+		out = append(out, map[string]any{
+			"agent": agent, "events": events,
+			"prompt_tokens": prompt, "completion_tokens": completion, "tokens_saved": saved,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 type approvalReq struct {
