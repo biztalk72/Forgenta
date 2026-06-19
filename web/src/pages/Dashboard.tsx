@@ -1,6 +1,6 @@
-// 대시보드 - 멀티턴 채팅(STREAM-FIRST). 선택된 Agent의 시스템 프롬프트/라우팅 적용 + 자동 스크롤
+// 대시보드 - 멀티턴 채팅(STREAM-FIRST). Agent 피커로 선택 시 시스템 프롬프트/라우팅 적용 + 자동 스크롤
 import { useEffect, useRef, useState } from 'react'
-import { Badge, Box, Button, Checkbox, Group, ScrollArea, Stack, Textarea, Title } from '@mantine/core'
+import { Box, Button, Checkbox, Group, ScrollArea, Select, Stack, Textarea, Title } from '@mantine/core'
 import { useSearchParams } from 'react-router-dom'
 import { streamChat, type ChatTurn } from '../lib/stream'
 import { apiGet } from '../lib/api'
@@ -20,8 +20,9 @@ interface AgentResponse {
 }
 
 export default function DashboardPage() {
-  const [params] = useSearchParams()
+  const [params, setSearchParams] = useSearchParams()
   const agentId = params.get('agent')
+  const [agentList, setAgentList] = useState<{ id: string; name: string }[]>([])
   const [agent, setAgent] = useState<SelectedAgent | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [prompt, setPrompt] = useState('')
@@ -29,6 +30,13 @@ export default function DashboardPage() {
   const [sensitive, setSensitive] = useState(false)
   const [busy, setBusy] = useState(false)
   const viewport = useRef<HTMLDivElement>(null)
+
+  // 피커용 에이전트 목록
+  useEffect(() => {
+    apiGet<{ id: string; name: string }[]>('/catalog/v1/agents')
+      .then(setAgentList)
+      .catch(() => setAgentList([]))
+  }, [])
 
   // 선택된 Agent 로드 → 대화 초기화
   useEffect(() => {
@@ -44,6 +52,11 @@ export default function DashboardPage() {
   useEffect(() => {
     viewport.current?.scrollTo({ top: viewport.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
+
+  function pickAgent(value: string | null) {
+    if (value) setSearchParams({ agent: value })
+    else setSearchParams({})
+  }
 
   async function run() {
     const text = prompt.trim()
@@ -78,12 +91,17 @@ export default function DashboardPage() {
     <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 90px)' }}>
       <Group justify="space-between" mb="sm">
         <Title order={3}>Dashboard</Title>
-        {agent && (
-          <Group gap="xs">
-            <Badge size="lg" variant="light" color="grape">Agent: {agent.name}</Badge>
-            <Button size="xs" variant="subtle" component="a" href="/">일반 채팅</Button>
-          </Group>
-        )}
+        <Select
+          placeholder="일반 채팅 (에이전트 없음)"
+          w={260}
+          value={agentId ?? ''}
+          onChange={pickAgent}
+          data={[
+            { value: '', label: '일반 채팅 (에이전트 없음)' },
+            ...agentList.map((a) => ({ value: a.id, label: a.name })),
+          ]}
+          comboboxProps={{ withinPortal: true }}
+        />
       </Group>
       <ScrollArea flex={1} viewportRef={viewport} type="auto">
         <Stack gap="sm" pr="md">
@@ -93,7 +111,7 @@ export default function DashboardPage() {
                 role: 'assistant',
                 content: agent
                   ? `${agent.name}와 대화를 시작합니다.${agent.systemPrompt ? ' (시스템 프롬프트 적용됨)' : ''}`
-                  : '무엇이든 물어보세요. 대화는 멀티턴으로 이어집니다.',
+                  : '무엇이든 물어보세요. 대화는 멀티턴으로 이어집니다. 상단에서 에이전트를 선택할 수 있습니다.',
               }}
             />
           )}
