@@ -160,7 +160,7 @@ Loop 2(DB)/Loop 3(서비스)/Loop 4(통합)/Loop 5(프론트)/Loop 6(E2E)를 재
 - **verify:** approval 생성/정지 → approve 후 resume 완료, reject 후 halt. integration/e2e에 워크플로우 플로우 추가 + 기존 회귀 유지.
 
 ### Phase 15~17 — 후속 증분 (MVP 이후)
-- Phase 15 — Connectors + 외부 산출: `connector` 테이블 + 커넥터(`gworkspace`/`obsidian`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프. Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·Obsidian 노트·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→Obsidian→메일→Playwright MCP(도메인 allowlist+격리). 상세: PRD v3 §13 Phase 15.
+- Phase 15 — Connectors + 외부 산출: `connector` 테이블 + 커넥터(`gworkspace`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프. Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→메일→Playwright MCP(도메인 allowlist+격리). 상세: PRD v3 §13 Phase 15. (Obsidian은 v3.3에서 제외 — 로컬 볼트 도달 불가.)
 - Phase 16 — 학습 + 이상탐지: `workflow_memory`+Qdrant RAG 학습 루프, `alert`/`alert_rule` 이상탐지/알림.
 - Phase 17 — 스케줄 + UI: `workflow_schedule`+스케줄러, `/connectors` 페이지, Admin 관측/알림/개선지표.
 

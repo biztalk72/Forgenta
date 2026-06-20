@@ -206,6 +206,14 @@
   `PLAN.md` **§5**(v3 Phase 11~17), `checklist.md` **Phase 11~17**. Claude Code는 CLAUDE.md→PLAN.md→checklist.md→
   context-notes.md 순으로 읽고 **Loop 7 / Phase 11(000008 마이그레이션)부터** Loop Harness(verify 게이트)로 진행.
 
+### 2026-06-20 — PRD v3.2 → v3.3 (Obsidian 커넥터 제거)
+- **결정.** 사용자 지시로 **Obsidian 연동(Phase 15) 제거**. 근거: 사용자 로컬 볼트(Local REST API `localhost:27123`)는
+  k3d 클러스터 컨테이너에서 도달 불가 → 데스크톱 브리지/터널 필수, MVP 가치 대비 비용 과다(리뷰에서 최대 리스크로 지목).
+- **반영.** `obsidian` kind/Output Target/Input·Trigger/§7 export target·§10 격리·§11 UI·§13 Phase 15·§15 Open Decision·§16에서 삭제.
+  잔존 커넥터: `gworkspace`/`gmail`/`outlook`/`browser`(Playwright MCP)/http_api/mcp/db. Phase 15 착수순서 Google→메일→Playwright MCP.
+  PRD 헤더 v3.3 + §0-A v3.3 changelog. PLAN §5/checklist Phase 15 동기화.
+- **상태.** 문서만. 코드/빌드 없음.
+
 ### 2026-06-20 — DESIGN.md 도입 + 빌드 배선
 - **DESIGN.md 분석.** UI 디자인 운영 표준(시각적 헌법). 3계층 — PRD(무엇)/CLAUDE.md(어떻게 작업)/DESIGN.md(UI 외형·거동).
   내용: theme system(light/dark + semantic token 15종), WebGL=enhancement-only, 레이아웃/반응형(375/768/1024/1440)/
