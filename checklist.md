@@ -95,9 +95,11 @@
 > v3 MVP = Phase 11~14. PRD: `docs/prd/Forgenta PRD v3.md`. Warp 플랜 `plan_id e7a37d0d`.
 
 ## Phase 11 — v3 데이터 파운데이션 (Loop 2 확장)
-- [ ] `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow` / `workflow_run` / `workflow_step_run`
-- [ ] 인덱스 (workspace별 목록, run별 step 조회)
-- [ ] verify: `make migrate` 후 신규 3 테이블 + migration version 8 clean
+- [x] `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow` / `workflow_run` / `workflow_step_run` (merge: main `dab88e2`, PR #3)
+- [x] 인덱스 (workspace별 목록, run별 step 조회)
+- [x] enum 정합 v3.4: `kind` CHECK(`llm|tool|approval|export`) + `workflow_run.status` `pending` + `source` `nl|demo|manual`
+- [~] verify: ⚠️ **라이브 DB가 v3.4 이전 000008로 적용됨**(kind CHECK 없음, run.status `pending` 없음). 교정 재적용 필요:
+      `make migrate-down && make migrate` → 재확인: `kind`/`status` CHECK 존재 + version 8 clean + 3 테이블. (워크플로우 테이블 비어 있어 안전)
 
 ## Phase 12 — workflow-svc + Compiler (Loop 3 확장)
 - [ ] `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`entity_type='workflow'`)
