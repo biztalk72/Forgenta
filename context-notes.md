@@ -216,22 +216,11 @@
 - 빌드 상태: v2(Phase 0~10) 배포·가동 중. v3는 **Phase 11(000008)까지 머지**. Phase 12+ 코드 미착수.
 - 클러스터: k3d `forgenta` 가동(28h), 네임스페이스 4종 Active, DB `schema_migrations` version 8.
 
-**⚠ 즉시 할 일 #1 — 000008 교정 재적용 (verify 미통과 상태)**
-- 라이브 DB는 **v3.4 이전** 000008로 적용됨 → `workflow_step_run.kind` CHECK 없음, `workflow_run.status`에 pending 없음.
-- 마이그레이션 도구는 version 8을 재적용하지 않으므로 **수동 재적용 필요**(테이블 비어 있어 안전):
-  ```bash
-  make migrate-down   # 000008 down (workflow 3테이블 drop, version→7)
-  make migrate        # 교정 000008 재적용 (version→8)
-  ```
-- 재확인(verify 통과 기준): `kind`/`status` CHECK 제약 존재 + version 8 dirty=f + 3 테이블.
-  ```bash
-  POD=$(kubectl get pods -n forgenta-infra -o name | grep postgres | head -1)
-  kubectl exec -n forgenta-infra $POD -- psql -U forgenta -d forgenta -tAc \
-    "SELECT conname FROM pg_constraint WHERE conrelid='workflow_step_run'::regclass AND contype='c';"
-  # → workflow_step_run_kind_check 가 보여야 함
-  ```
+**✅ Phase 11 verify 완료 (2026-06-20)** — `make migrate-down && make migrate`로 v3.4 교정본 000008 재적용.
+DB에 `workflow_step_run_kind_check`(llm|tool|approval|export) + `workflow_run.status` pending 확인, version 8 clean, 3 테이블.
+(부수: `infra/scripts/migrate.sh`가 `"down 1"`을 단일 인자로 넘기던 버그 → 토큰 분리하도록 수정.)
 
-**다음 작업 — Phase 12 (workflow-svc + Compiler)**
+**다음 작업(= 즉시) — Phase 12 (workflow-svc + Compiler)**
 - `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`clone_lineage entity_type='workflow'`) + 내부 write API.
 - 게이트웨이 `/api/workflow/` + `WORKFLOW_URL`/go.work/Helm(8006)/build-images.sh 배선.
 - orchestration `app/compiler.py` + `POST /v1/workflows/compile`(SSE). **출력은 PRD §6.A 스키마로 검증 + 실패 시 재시도**.

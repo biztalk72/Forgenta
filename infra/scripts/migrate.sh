@@ -9,6 +9,10 @@ NS=forgenta-infra
 ACTION="${1:-up}"
 DB_URL="postgres://forgenta:forgenta@postgresql.${NS}.svc.cluster.local:5432/forgenta?sslmode=disable"
 
+# ACTION은 "down 1"처럼 다중 토큰일 수 있어 각각 별도 인자로 분리한다(공백 기준).
+ARGS_JSON="\"-path=/migrations\", \"-database=${DB_URL}\""
+for a in $ACTION; do ARGS_JSON="$ARGS_JSON, \"$a\""; done
+
 echo "=== syncing migrations to ConfigMap ==="
 kubectl create configmap forgenta-migrations \
   --from-file="$ROOT_DIR/db/migrations" \
@@ -30,7 +34,7 @@ spec:
       containers:
         - name: migrate
           image: migrate/migrate:latest
-          args: ["-path=/migrations", "-database=${DB_URL}", "${ACTION}"]
+          args: [${ARGS_JSON}]
           volumeMounts:
             - name: migrations
               mountPath: /migrations
