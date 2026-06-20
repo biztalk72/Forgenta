@@ -24,7 +24,10 @@ v2(단발성 에이전트 플랫폼)는 완성·가동 중이고, v3(자연어�
 - **v2 완료** — 10 Phase. 7 서비스(api-gateway/identity/orchestration/headroom/catalog/artifact/governance)
   + 인프라(PG·Redis·Qdrant·MinIO) + web + 관측(Loki/promtail/Grafana) 전부 in-cluster 가동.
 - **v3 진행** — PR #2(플랜 문서) MERGED, PR #3(Phase 11 마이그레이션) MERGED.
-- **DB** — `make migrate` 적용, schema **version 8** clean. 신규 3 테이블 존재.
+- **DB** — schema **version 8** clean, 신규 3 테이블 존재. ⚠️ **단, 라이브 DB는 v3.4 enum 정합 이전 000008로 적용됨**
+  (`workflow_step_run.kind` CHECK 없음, `workflow_run.status`에 `pending` 없음). 마이그레이션 도구는 v8을 재적용 안 함 →
+  **교정 필요**(워크플로우 테이블 비어 있어 안전): `make migrate-down && make migrate` 후 `kind`/`status` CHECK 존재 재확인.
+  (§3 데이터 모델은 교정 후 기준. PRD v3.4 §6.A가 spec 계약.)
 - **클러스터** — infra 4 / core 7 / ui 1 / obs 5 pod Running. UI `http://forgenta.localhost:8080`
   (로그인 `admin@forgenta.local` / `forgenta`). Grafana는 `kubectl port-forward -n forgenta-obs svc/grafana 3000:3000`.
 - **다음** — Phase 12.
@@ -61,7 +64,8 @@ make e2e-test            # 7/7
 - 게이트웨이 `/api/workflow/` 서브트리 프록시 + `WORKFLOW_URL`. `go.work` / Helm(`workflow.*`, 8006) /
   `workflow-svc.yaml` / `build-images.sh` 배선.
 - orchestration `app/compiler.py` — NL 설명 → `workflow.spec` JSON, SSE `plan`/`step`. `app/main.py`에 `POST /v1/workflows/compile`.
-- **verify** — workflow-svc build/vet, 게이트웨이 경유 workflow CRUD + clone 계보, compile SSE가 steps≥2 유효 spec 반환.
+  출력 spec은 **PRD v3.4 §6.A JSON Schema**(version/steps[seq,kind,ref,input_map,output_key,requires_approval,on_error,handoff_to])로 검증 + 실패 시 재시도(로컬 모델 비결정성 대비).
+- **verify** — workflow-svc build/vet, 게이트웨이 경유 workflow CRUD + clone 계보, compile SSE가 steps≥2 + **§6.A 스키마 valid** spec 반환.
 
 ### Phase 13 — Workflow Runtime (Loop 3/4)
 - orchestration `app/runtime.py` — spec steps 실행, 단계별 기존 `ModelRouter`+`providers.stream` 재사용.
