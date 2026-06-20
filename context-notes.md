@@ -206,6 +206,39 @@
   `PLAN.md` **§5**(v3 Phase 11~17), `checklist.md` **Phase 11~17**. Claude Code는 CLAUDE.md→PLAN.md→checklist.md→
   context-notes.md 순으로 읽고 **Loop 7 / Phase 11(000008 마이그레이션)부터** Loop Harness(verify 게이트)로 진행.
 
+### ★ RESUME — 다른 터미널에서 빌드 이어받기 (2026-06-20, PRD v3.4 기준)
+> 다른 세션은 **CLAUDE.md → PLAN.md §5 → checklist Phase 11~ → 이 항목** 순으로 읽고 시작한다.
+
+**현재 상태**
+- 브랜치/커밋: `main` @ `dab88e2` (PR #3 머지). 원격 동기화 완료, 워킹 트리 클린.
+- PRD: **v3.4**(`docs/prd/Forgenta PRD v3.md`). spec 계약 = **§6.A** JSON Schema. enum: `source`=nl/demo/manual, step `kind`=llm/tool/approval/export, `workflow_run.status`에 pending 포함.
+- 커넥터(Phase 15): gworkspace/gmail/outlook/browser(Playwright MCP)/http_api/mcp/db. **Obsidian 제거됨(v3.3)**.
+- 빌드 상태: v2(Phase 0~10) 배포·가동 중. v3는 **Phase 11(000008)까지 머지**. Phase 12+ 코드 미착수.
+- 클러스터: k3d `forgenta` 가동(28h), 네임스페이스 4종 Active, DB `schema_migrations` version 8.
+
+**⚠ 즉시 할 일 #1 — 000008 교정 재적용 (verify 미통과 상태)**
+- 라이브 DB는 **v3.4 이전** 000008로 적용됨 → `workflow_step_run.kind` CHECK 없음, `workflow_run.status`에 pending 없음.
+- 마이그레이션 도구는 version 8을 재적용하지 않으므로 **수동 재적용 필요**(테이블 비어 있어 안전):
+  ```bash
+  make migrate-down   # 000008 down (workflow 3테이블 drop, version→7)
+  make migrate        # 교정 000008 재적용 (version→8)
+  ```
+- 재확인(verify 통과 기준): `kind`/`status` CHECK 제약 존재 + version 8 dirty=f + 3 테이블.
+  ```bash
+  POD=$(kubectl get pods -n forgenta-infra -o name | grep postgres | head -1)
+  kubectl exec -n forgenta-infra $POD -- psql -U forgenta -d forgenta -tAc \
+    "SELECT conname FROM pg_constraint WHERE conrelid='workflow_step_run'::regclass AND contype='c';"
+  # → workflow_step_run_kind_check 가 보여야 함
+  ```
+
+**다음 작업 — Phase 12 (workflow-svc + Compiler)**
+- `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`clone_lineage entity_type='workflow'`) + 내부 write API.
+- 게이트웨이 `/api/workflow/` + `WORKFLOW_URL`/go.work/Helm(8006)/build-images.sh 배선.
+- orchestration `app/compiler.py` + `POST /v1/workflows/compile`(SSE). **출력은 PRD §6.A 스키마로 검증 + 실패 시 재시도**.
+- verify: workflow CRUD+clone, compile SSE steps≥2 + §6.A valid. 상세 PLAN §5 Phase 12 / checklist.
+
+**코드 단계 주의(리뷰 지적)**: 내부 write API authz(NetworkPolicy+내부토큰), resume 시 `workflow_run.context`(blackboard) DB 재로드(stateless), compiler 로컬모델 비결정성→스키마검증+재시도. UI(Phase 14)는 DESIGN.md/Mantine(CLAUDE.md §3.5), 핸드오프 그래프는 DOM/SVG 1차.
+
 ### 2026-06-20 — PRD v3.4 (Phase 11 merge 정합: enum + spec 스키마)
 - **enum 정합 결정(000008 ↔ PRD).** 마이그레이션은 미적용 신규 테이블이라 새 마이그레이션 없이 **000008 in-place 수정**.
   ① `workflow.source`=`nl`/`demo`/`manual` 채택(마이그레이션 유지 → PRD 수정). ② step `kind`=`llm`/`tool`/`approval`/`export`로
