@@ -104,7 +104,7 @@
 - [ ] 내부 write API: `POST /v1/runs`, `PATCH /v1/runs/{id}`, `POST /v1/runs/{id}/steps`, `PATCH /v1/steps/{id}`
 - [ ] 게이트웨이 `/api/workflow/` 서브트리 프록시 + `WORKFLOW_URL` / go.work / Helm(`workflow.*`,8006) / `workflow-svc.yaml` / build-images.sh
 - [ ] orchestration `app/compiler.py` + `POST /v1/workflows/compile` (SSE plan/step)
-- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 유효 spec
+- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 + spec이 PRD §6.A 스키마 valid(검증 실패 시 재시도)
 
 ## Phase 13 — Workflow Runtime (Loop 3/4)
 - [ ] orchestration `app/runtime.py`: 단계 실행(ModelRouter+providers.stream 재사용) + blackboard context handoff
@@ -120,6 +120,6 @@
 - [ ] verify: approval 생성/정지 → approve resume, reject halt + integration/e2e 워크플로우 플로우 추가
 
 ## Phase 15~17 — 후속 증분 (MVP 이후)
-- [ ] Phase 15 — Connectors + 외부 산출: `connector`(`gworkspace`/`obsidian`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프(drive.file/gmail.send/Mail.Send). Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·Obsidian 노트·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→Obsidian→메일→Playwright MCP(도메인 allowlist+격리)
+- [ ] Phase 15 — Connectors + 외부 산출: `connector`(`gworkspace`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프(drive.file/gmail.send/Mail.Send). Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→메일→Playwright MCP(도메인 allowlist+격리). (Obsidian은 v3.3에서 제외)
 - [ ] Phase 16 — 학습/이상탐지: `workflow_memory`+Qdrant RAG, `alert`/`alert_rule`
 - [ ] Phase 17 — 스케줄/UI: `workflow_schedule`+스케줄러, `/connectors`, Admin 관측/알림/개선지표
