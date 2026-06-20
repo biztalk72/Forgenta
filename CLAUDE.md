@@ -360,5 +360,60 @@ text
    - primary → secondary → tertiary → error response
 3. **MCP 도구 실패는 전체 그래프를 멈추지 않는다** (fault-tolerant node)
 4. **DB 연결 실패는 즉시 /health를 degraded로 전환한다**
-5. **사용자에게 노출되는 오류 메시지는 절대
+5. **사용자에게 노출되는 오류 메시지는 절대 내부 스택/시크릿/모델 키를 포함하지 않는다.**
+
+---
+
+## 11. DGX Spark 프로필 (Profile: v2.5-dgx)
+
+> 본 레포가 **NVIDIA DGX Spark (GB10 / CUDA 13 / 128GB unified / ARM64 Ubuntu)** 호스트에서 실행될 때,
+> §1 Pre-flight와 §3 Loop Harness의 일부를 **`ARCHITECTURE.dgx.md` + `PLAN.dgx.md`** 가 오버라이드한다.
+> 두 문서는 **본 §11과 함께 단일 진실 소스**다. (Mac/Ollama 베이스라인은 그대로 유효 — 호스트가 macOS면 §1~§10 사용.)
+
+### 11.1 적용 시점 (When to use DGX profile)
+- `uname -m`이 `aarch64`이고 `nvidia-smi`가 `GB10`을 보고하는 경우 → **DGX 프로필을 따른다**.
+- 그 외(Mac/Linux x86 등) → 기존 §1~§10 그대로.
+
+### 11.2 핵심 차이 (Delta vs §1~§10)
+- **추론 엔진**: Ollama → **vLLM(primary) + NIM/TRT-LLM(perf path) + Ollama(fallback)**.
+- **모델 티어**: qwen3:1.7/8/14b → **Qwen3-72B(Planner) / Coder-32B(Executor) / Qwen3-8B(Summarizer) / 1.7B(Router)**.
+- **클러스터**: k3d → k3d + NVIDIA device plugin (GPU passthrough), 신규 namespace `forgenta-llm`.
+- **컨테이너 런타임**: Docker Desktop → containerd + NVIDIA Container Toolkit.
+- **신규 서비스**: `services/inference-gateway` (Go, 포트 8800) — 모델명→백엔드 라우팅, OpenAI 호환 SSE.
+- **로그/메트릭 확장**: `backend`, `gpu_index`, `kv_cache_pct`, `ttft_ms`, DCGM 메트릭.
+
+### 11.3 Pre-flight 오버라이드
+```bash
+command -v nvidia-smi && nvidia-smi | grep -q GB10 || echo "MISSING: GB10 GPU"
+command -v nvidia-ctk || echo "MISSING: nvidia-container-toolkit"
+command -v huggingface-cli || echo "MISSING: pip install -U 'huggingface_hub[cli]'"
+# 그 외 docker/k3d/helm/kubectl/go/python3/node 요구는 §1과 동일
+```
+
+### 11.4 Loop Harness 오버라이드 요약
+- Loop 1: `forgenta-llm` namespace + NVIDIA device plugin + DCGM Exporter 포함.
+- Loop 3: orchestration-svc는 `INFERENCE_GATEWAY_URL`을 통해 vLLM을 호출. Ollama는 폴백.
+- Loop 4: integration-test에 backend=vllm 라우팅 + fallback 시나리오 케이스 추가.
+- Loop 6: e2e에 TTFT/throughput SLO 회귀 게이트 추가 (Grafana `GPU & Inference` 패널).
+
+### 11.5 환경변수 추가
+```
+INFERENCE_GATEWAY_URL=http://inference-gateway.forgenta-core:8800
+DEFAULT_PLANNER_MODEL=vllm/qwen3-72b-instruct-nvfp4
+DEFAULT_EXECUTOR_MODEL=vllm/qwen3-coder-32b-fp8
+DEFAULT_SUMMARIZER_MODEL=vllm/qwen3-8b-fp8
+DEFAULT_ROUTER_MODEL=vllm/qwen3-1.7b
+DEFAULT_EMBED_MODEL=vllm/bge-m3
+OLLAMA_HOST=http://ollama.forgenta-llm:11434
+HF_HOME=/var/lib/forgenta/models/hf
+NGC_API_KEY=...        # NIM 사용 시
+```
+
+### 11.6 단계별 진입점
+- 단계별 빌드/검증: `PLAN.dgx.md` Phase D0~D5(필수) + D6/D7(선택, NIM/2-DGX).
+- 체크리스트: `checklist.md`에 Phase D 항목을 추가하여 진행 추적.
+
+> **AI 어시스턴트 지침**: DGX Spark 환경에서 빌드/검증을 시작하기 전에 항상
+> `ARCHITECTURE.dgx.md` → `PLAN.dgx.md` 순으로 먼저 읽고, 본 §11을 §1~§10의 오버라이드로 적용한다.
+
 
