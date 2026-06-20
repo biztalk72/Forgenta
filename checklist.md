@@ -104,7 +104,7 @@
 - [ ] 내부 write API: `POST /v1/runs`, `PATCH /v1/runs/{id}`, `POST /v1/runs/{id}/steps`, `PATCH /v1/steps/{id}`
 - [ ] 게이트웨이 `/api/workflow/` 서브트리 프록시 + `WORKFLOW_URL` / go.work / Helm(`workflow.*`,8006) / `workflow-svc.yaml` / build-images.sh
 - [ ] orchestration `app/compiler.py` + `POST /v1/workflows/compile` (SSE plan/step)
-- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 유효 spec
+- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 + spec이 PRD §6.A 스키마 valid(검증 실패 시 재시도)
 
 ## Phase 13 — Workflow Runtime (Loop 3/4)
 - [ ] orchestration `app/runtime.py`: 단계 실행(ModelRouter+providers.stream 재사용) + blackboard context handoff

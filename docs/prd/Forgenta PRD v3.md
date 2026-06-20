@@ -1,6 +1,6 @@
-# Forgenta PRD v3.3
+# Forgenta PRD v3.4
 ## Hybrid Agentic AI Platform — Agentic Operations (Workflow Fabric) 확장
-Version: 3.3 | Status: DRAFT (설계 합의 · 빌드 go-신호 대기) | Date: 2026-06-20 | Author: CAIO/CTO | Runtime: MacOS + k3d
+Version: 3.4 | Status: DRAFT (설계 합의 · Phase 11 merge 준비) | Date: 2026-06-20 | Author: CAIO/CTO | Runtime: MacOS + k3d
 > 본 문서는 PRD v2.0(`docs/prd/Forgenta PRD v2.md`)을 상위 호환으로 계승·확장한다.
 > v2의 제품 정의(§1), 시스템 아키텍처(§2), Multi-LLM 전략(§3)은 그대로 유효하며,
 > v3는 그 위에 **Akai(by Deel) 스타일의 운영 자동화(Agentic Operations) 기능**을 추가한다.
@@ -8,6 +8,13 @@ Version: 3.3 | Status: DRAFT (설계 합의 · 빌드 go-신호 대기) | Date: 
 > `checklist.md` Phase 11~17 / `CLAUDE.md` Loop 7에 materialize되어 있다(SSOT 동기화 완료).
 
 ## 0-A. 변경 이력 (Changelog)
+### v3.4 (from v3.3) — Phase 11 merge 정합
+- **enum 정합(000008 ↔ PRD).** ① `workflow.source` = `nl`(자연어)/`demo`(시연)/`manual`(직접 생성)로 통일(마이그레이션 채택, PRD 수정).
+  ② step `kind` = `llm`/`tool`/`approval`/`export`로 통일 + 마이그레이션에 **CHECK 제약** 추가(spec step·`workflow_step_run` 동일 어휘).
+  ③ `workflow_run.status`에 `pending` 추가(마이그레이션 CHECK).
+- **spec 스키마 명세.** `workflow.spec` JSONB 구조를 **§6.A**에 JSON Schema로 고정(컴파일러 출력·런타임 입력 계약).
+- **`external_file_ref`** 는 export(Phase 15) 컬럼 — 000008(MVP) 미포함, Phase 15에서 `ALTER ADD`(§6 주석).
+
 ### v3.3 (from v3.2)
 - **Obsidian 커넥터 제거.** 사용자 로컬 볼트(Local REST API)는 k3d 클러스터 컨테이너에서 도달 불가 —
   데스크톱 브리지/터널이 사실상 필수라 MVP 가치 대비 비용 과다. Phase 15 범위에서 제외(§3·§5·§6·§7·§10·§11·§13·§15).
@@ -67,8 +74,8 @@ v2 파이프라인(입력→해석→실행→멀티모달 결과→카탈로그
 작성(Author: describe/record) → 컴파일(Compile: NL→Spec) → 검토·승인(Review/Approve) → 실행(Run: multi-agent handoff + shared context) → 결과/아티팩트(Output) → 계량·감사·이상탐지(Govern/Detect) → 학습(Learn) → (다음 실행 개선)
 # 3. 핵심 개념 (New Domain Concepts)
 v2 엔티티(agent/app/prompt_template/artifact/approval/audit_log/usage_event)는 유지. v3 신규:
-- **Workflow**: 버전 관리되는 다단계 자동화 정의. 출처는 `described`(자연어) 또는 `recorded`(시연). 단계 DAG를 `spec`(JSONB)에 보관(에이전트의 `config` JSONB 패턴과 동일 철학).
-- **Workflow Step**: 한 단계. `agent`/`prompt_template`/`connector`/`tool` 중 하나에 바인딩. 입력/출력 매핑, `requires_approval`, `on_error`(retry/skip/halt), 핸드오프 대상 정의.
+- **Workflow**: 버전 관리되는 다단계 자동화 정의. 출처(`source`)는 `nl`(자연어 설명) / `demo`(시연 녹화) / `manual`(직접 생성). 단계 DAG를 `spec`(JSONB, 스키마는 §6.A)에 보관(에이전트의 `config` JSONB 패턴과 동일 철학).
+- **Workflow Step**: 한 단계. `kind`(`llm`/`tool`/`approval`/`export`)와 바인딩 `ref`(에이전트/프롬프트/커넥터 등). 입력/출력 매핑, `requires_approval`, `on_error`(retry/skip/halt), 핸드오프 대상 정의. (`spec.steps[]` 및 실행 기록 `workflow_step_run.kind`가 동일 어휘.)
 - **Workflow Run**: 실행 인스턴스. 상태(pending/awaiting_approval/running/succeeded/failed/cancelled), 트리거(manual/scheduled/event), 공유 컨텍스트(blackboard), 요약.
 - **Workflow Step Run**: 단계 실행 기록. 입력/출력(아티팩트 참조), 모델/토큰/지연, 오류, 승인 참조.
 - **Connector**: 외부 시스템 접속 단위. 종류 `http_api`/`mcp`/`browser`/`db`/`gworkspace`/`gmail`/`outlook`. 비밀이 아닌 설정은 JSONB, 자격증명은 **secret 참조만** 저장("API 유무 무관 접근").
@@ -120,17 +127,45 @@ v2 스키마(000001~000007)에 이어 신규 마이그레이션으로 추가(gol
 > `workflow` / `workflow_run` / `workflow_step_run`(`checklist.md` Phase 11). 아래 `connector`(`gworkspace` 포함)·
 > `workflow_schedule`·`workflow_memory`·`alert(_rule)`는 **후속 마이그레이션**(Phase 15~17)에서 추가하는 제안 스키마다.
 > 단계 정의는 별도 테이블 없이 `workflow.spec` JSONB에 임베드(아래 `workflow_step`는 정규화 옵션).
-- `workflow`: id, workspace_id(FK), name, description, spec JSONB(단계 DAG), source(`described`|`recorded`), status(`draft`|`active`|`archived`), version INT, created_by, created_at, updated_at.
-- `workflow_step`(선택: spec 정규화 시): id, workflow_id(FK), seq, kind(`agent`|`prompt`|`connector`|`tool`), ref_id, io_map JSONB, requires_approval BOOL, on_error TEXT, handoff_to UUID.
+- `workflow`: id, workspace_id(FK), name, description, spec JSONB(단계 DAG, 스키마 §6.A), source(`nl`|`demo`|`manual`), status(`draft`|`active`|`archived`), version INT, created_by, created_at, updated_at.
+- `workflow_step`(선택: spec 정규화 시): id, workflow_id(FK), seq, kind(`llm`|`tool`|`approval`|`export`), ref_id, io_map JSONB, requires_approval BOOL, on_error TEXT, handoff_to UUID.
   - 1차 구현은 `agent.config` JSONB 선례를 따라 단계를 `workflow.spec`에 임베드, 정규화 테이블은 후속 옵션으로 명시.
-- `workflow_run`: id, workflow_id(FK), workspace_id, status, trigger(`manual`|`scheduled`|`event`), context JSONB(blackboard), summary TEXT, started_at, finished_at.
-- `workflow_step_run`: id, run_id(FK), step_seq, kind, agent_id, status, input JSONB, output_artifact_id UUID, **external_file_ref JSONB(export 결과: provider/file_id/url/mime, nullable)**, prompt_tokens, completion_tokens, latency_ms, error TEXT, approval_id UUID.
+- `workflow_run`: id, workflow_id(FK), workspace_id, status(`pending`|`running`|`awaiting_approval`|`succeeded`|`failed`|`cancelled`), trigger(`manual`|`scheduled`|`event`), context JSONB(blackboard), summary TEXT, started_at, finished_at.
+- `workflow_step_run`: id, run_id(FK), step_seq, kind(`llm`|`tool`|`approval`|`export`, CHECK), agent_id, status, input JSONB, output_artifact_id UUID, prompt_tokens, completion_tokens, latency_ms, error TEXT, approval_id UUID, UNIQUE(run_id, step_seq).
+  - **`external_file_ref JSONB`**(export 결과: provider/file_id_or_path/url/mime)는 export(Phase 15) 전용 — 000008(MVP)에는 없고 **Phase 15에서 `ALTER TABLE ... ADD COLUMN`** 으로 추가.
 - `connector`: id, workspace_id(FK), kind(`http_api`|`mcp`|`browser`|`db`|`gworkspace`|`gmail`|`outlook`), name, config JSONB(비밀 제외; OAuth client_id/scopes, 대상 Drive 폴더, Playwright MCP 서버 URL·허용 도메인 등), secret_ref TEXT(k8s Secret/외부 볼트 참조; OAuth refresh token), status, created_by, created_at.
   - `browser`는 Playwright MCP 서버를 가리키며, config에 MCP endpoint·도메인 allowlist, secret_ref에 필요 시 자격증명을 둔다.
 - `workflow_schedule`: id, workflow_id(FK), cron TEXT, timezone TEXT, enabled BOOL, next_run_at, created_by.
 - `workflow_memory`: id, workflow_id(FK), run_id, kind(`success_pattern`|`correction`|`feedback`), content TEXT, embedding(pgvector 또는 Qdrant 참조), created_at.
 - `alert_rule`: id, workspace_id, name, condition JSONB, severity, enabled. `alert`: id, workspace_id, run_id, rule_id, severity, message, status(`open`|`ack`|`resolved`), created_at.
 인덱스/시계열: `workflow_run(workspace_id, started_at DESC)`, `workflow_step_run(run_id)`, `alert(workspace_id, created_at DESC)`. 보안: 커넥터 자격증명 평문 저장 금지 — `secret_ref`만(운영 전 k8s Secret 전환, `context-notes.md` 결정 대기 #3과 정합).
+## 6.A `workflow.spec` 스키마 (컴파일러 출력 = 런타임 입력 계약)
+컴파일러(`POST /v1/workflows/compile`)가 생성하고 런타임이 소비하는 단일 계약. 1차는 **순차(linear) steps**, DAG 분기는 후속.
+```jsonc
+{
+  "version": 1,
+  "name": "string",                    // 사람이 읽는 워크플로우명
+  "steps": [
+    {
+      "seq": 1,                          // 1부터 정수, 유일(= workflow_step_run.step_seq)
+      "kind": "llm",                     // llm | tool | approval | export
+      "name": "string",                  // 단계 표시명
+      "ref": {                           // kind별 바인딩 대상(택1)
+        "agent_id": "uuid",              // kind=llm (카탈로그 에이전트). 없으면 router 기본
+        "prompt_template_id": "uuid",    // kind=llm (프롬프트 템플릿)
+        "connector_id": "uuid",          // kind=tool|export (커넥터)
+        "tool": "string"                 // kind=tool (MCP/내장 도구명)
+      },
+      "input_map": { "field": "context.key" },   // blackboard → 단계 입력 매핑
+      "output_key": "string",            // 결과를 blackboard에 쓸 키
+      "requires_approval": false,        // true → awaiting_approval 정지(§8)
+      "on_error": "halt",                // retry | skip | halt
+      "handoff_to": 2                    // 다음 단계 seq(생략 시 seq+1, 종료 시 null)
+    }
+  ]
+}
+```
+**검증 규칙(compile verify 기준):** `version`·`steps`(≥1) 필수, `seq` 유일·연속, `kind`는 enum, `kind=export`는 `ref.connector_id` 필수, `on_error`/`handoff_to` 유효. 컴파일러는 이 스키마로 **출력 검증 후 실패 시 재시도**(로컬 모델 비결정성 대비). MVP verify는 "steps≥2 + 스키마 valid".
 # 7. API 설계 (Gateway + 서비스 엔드포인트)
 게이트웨이는 신규 서브트리 `/api/workflow/`를 JWT 보호로 추가(기존 `stripProxy` 패턴). 오케스트레이션은 신규 `/v1` 경로 추가.
 워크플로우 서비스(`workflow-svc`, `catalog-svc` 라우트 스타일 계승):

@@ -206,6 +206,16 @@
   `PLAN.md` **§5**(v3 Phase 11~17), `checklist.md` **Phase 11~17**. Claude Code는 CLAUDE.md→PLAN.md→checklist.md→
   context-notes.md 순으로 읽고 **Loop 7 / Phase 11(000008 마이그레이션)부터** Loop Harness(verify 게이트)로 진행.
 
+### 2026-06-20 — PRD v3.4 (Phase 11 merge 정합: enum + spec 스키마)
+- **enum 정합 결정(000008 ↔ PRD).** 마이그레이션은 미적용 신규 테이블이라 새 마이그레이션 없이 **000008 in-place 수정**.
+  ① `workflow.source`=`nl`/`demo`/`manual` 채택(마이그레이션 유지 → PRD 수정). ② step `kind`=`llm`/`tool`/`approval`/`export`로
+  통일 + **000008에 CHECK 추가**(spec.steps[]·workflow_step_run 동일 어휘). ③ `workflow_run.status` CHECK에 `pending` 추가.
+- **spec 스키마.** `workflow.spec` JSON 구조를 **PRD §6.A**에 고정(version/steps[seq,kind,ref,input_map,output_key,
+  requires_approval,on_error,handoff_to]). 1차 순차(linear), DAG 분기는 후속. compile verify="steps≥2 + 스키마 valid".
+- **external_file_ref.** export(Phase 15) 전용 → 000008 미포함, Phase 15 `ALTER ADD`로 명시(PRD §6).
+- **반영.** `db/migrations/000008_workflow.up.sql`(CHECK 2건), PRD 헤더 v3.4 + §0-A + §3 + §6 + §6.A. checklist Phase 12 verify.
+- **상태.** Phase 11 merge 게이트의 🔴 2건 해소. 코드/빌드는 여전히 Phase 12부터(미착수).
+
 ### 2026-06-20 — PRD v3.2 → v3.3 (Obsidian 커넥터 제거)
 - **결정.** 사용자 지시로 **Obsidian 연동(Phase 15) 제거**. 근거: 사용자 로컬 볼트(Local REST API `localhost:27123`)는
   k3d 클러스터 컨테이너에서 도달 불가 → 데스크톱 브리지/터널 필수, MVP 가치 대비 비용 과다(리뷰에서 최대 리스크로 지목).

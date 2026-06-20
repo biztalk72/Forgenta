@@ -20,7 +20,7 @@ CREATE TABLE workflow_run (
     workflow_id  UUID NOT NULL REFERENCES workflow(id) ON DELETE CASCADE,
     workspace_id UUID NOT NULL REFERENCES workspace(id) ON DELETE CASCADE,
     status       TEXT NOT NULL DEFAULT 'running'
-                 CHECK (status IN ('running', 'awaiting_approval', 'succeeded', 'failed', 'cancelled')),
+                 CHECK (status IN ('pending', 'running', 'awaiting_approval', 'succeeded', 'failed', 'cancelled')),
     trigger      TEXT NOT NULL DEFAULT 'manual',
     context      JSONB NOT NULL DEFAULT '{}',          -- blackboard (단계 간 공유 컨텍스트)
     summary      TEXT,
@@ -32,7 +32,8 @@ CREATE TABLE workflow_step_run (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     run_id             UUID NOT NULL REFERENCES workflow_run(id) ON DELETE CASCADE,
     step_seq           INTEGER NOT NULL,
-    kind               TEXT NOT NULL,                  -- llm | tool | approval ...
+    kind               TEXT NOT NULL                   -- llm | tool | approval | export
+                       CHECK (kind IN ('llm', 'tool', 'approval', 'export')),
     agent_id           UUID REFERENCES agent(id) ON DELETE SET NULL,
     status             TEXT NOT NULL DEFAULT 'pending'
                        CHECK (status IN ('pending', 'running', 'awaiting_approval', 'succeeded', 'failed', 'skipped')),
