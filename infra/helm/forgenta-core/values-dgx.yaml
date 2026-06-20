@@ -1,0 +1,9 @@
+# forgenta-core DGX Spark overrides (Phase D4 — orchestration rewire).
+# Uses the host Ollama (already running on DGX host :11434) via host.k3d.internal.
+# Model picks reflect what is actually pulled on the host today; can grow to 32B/72B once vLLM lands.
+
+ollamaHost: http://host.k3d.internal:11434
+
+orchestration:
+  executorModel: ollama/granite4.1:8b   # tool-use capable, larger than 4b for executor
+  routerModel: ollama/qwen3:4b          # smallest router we have locally
