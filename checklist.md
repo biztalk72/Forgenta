@@ -98,8 +98,9 @@
 - [x] `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow` / `workflow_run` / `workflow_step_run` (merge: main `dab88e2`, PR #3)
 - [x] 인덱스 (workspace별 목록, run별 step 조회)
 - [x] enum 정합 v3.4: `kind` CHECK(`llm|tool|approval|export`) + `workflow_run.status` `pending` + `source` `nl|demo|manual`
-- [~] verify: ⚠️ **라이브 DB가 v3.4 이전 000008로 적용됨**(kind CHECK 없음, run.status `pending` 없음). 교정 재적용 필요:
-      `make migrate-down && make migrate` → 재확인: `kind`/`status` CHECK 존재 + version 8 clean + 3 테이블. (워크플로우 테이블 비어 있어 안전)
+- [x] verify ✅ (2026-06-20): `make migrate-down && make migrate` 재적용 후 version 8 clean + 3 테이블 +
+      `workflow_step_run_kind_check`(llm|tool|approval|export) + `workflow_run.status`에 pending 확인.
+      (부수 수정: `infra/scripts/migrate.sh`가 `"down 1"`을 단일 인자로 넘기던 버그 → 토큰 분리하도록 수정)
 
 ## Phase 12 — workflow-svc + Compiler (Loop 3 확장)
 - [ ] `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`entity_type='workflow'`)

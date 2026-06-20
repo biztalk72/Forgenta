@@ -24,10 +24,9 @@ v2(단발성 에이전트 플랫폼)는 완성·가동 중이고, v3(자연어�
 - **v2 완료** — 10 Phase. 7 서비스(api-gateway/identity/orchestration/headroom/catalog/artifact/governance)
   + 인프라(PG·Redis·Qdrant·MinIO) + web + 관측(Loki/promtail/Grafana) 전부 in-cluster 가동.
 - **v3 진행** — PR #2(플랜 문서) MERGED, PR #3(Phase 11 마이그레이션) MERGED.
-- **DB** — schema **version 8** clean, 신규 3 테이블 존재. ⚠️ **단, 라이브 DB는 v3.4 enum 정합 이전 000008로 적용됨**
-  (`workflow_step_run.kind` CHECK 없음, `workflow_run.status`에 `pending` 없음). 마이그레이션 도구는 v8을 재적용 안 함 →
-  **교정 필요**(워크플로우 테이블 비어 있어 안전): `make migrate-down && make migrate` 후 `kind`/`status` CHECK 존재 재확인.
-  (§3 데이터 모델은 교정 후 기준. PRD v3.4 §6.A가 spec 계약.)
+- **DB** — schema **version 8** clean, 신규 3 테이블 존재. ✅ **Phase 11 verify 통과(2026-06-20)**: v3.4 교정본
+  000008 재적용 완료 — `workflow_step_run_kind_check`(llm|tool|approval|export) + `workflow_run.status`에 pending 존재.
+  (재적용 과정에서 `infra/scripts/migrate.sh`의 `down 1` 단일-인자 버그를 수정함.) §3 = 현재 DB 기준. PRD v3.4 §6.A가 spec 계약.
 - **클러스터** — infra 4 / core 7 / ui 1 / obs 5 pod Running. UI `http://forgenta.localhost:8080`
   (로그인 `admin@forgenta.local` / `forgenta`). Grafana는 `kubectl port-forward -n forgenta-obs svc/grafana 3000:3000`.
 - **다음** — Phase 12.
