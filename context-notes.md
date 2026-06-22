@@ -206,6 +206,46 @@
   `PLAN.md` **§5**(v3 Phase 11~17), `checklist.md` **Phase 11~17**. Claude Code는 CLAUDE.md→PLAN.md→checklist.md→
   context-notes.md 순으로 읽고 **Loop 7 / Phase 11(000008 마이그레이션)부터** Loop Harness(verify 게이트)로 진행.
 
+### ★ RESUME — 다른 터미널에서 빌드 이어받기 (2026-06-20, PRD v3.4 기준)
+> 다른 세션은 **CLAUDE.md → PLAN.md §5 → checklist Phase 11~ → 이 항목** 순으로 읽고 시작한다.
+
+**현재 상태**
+- 브랜치/커밋: `main` @ `dab88e2` (PR #3 머지). 원격 동기화 완료, 워킹 트리 클린.
+- PRD: **v3.4**(`docs/prd/Forgenta PRD v3.md`). spec 계약 = **§6.A** JSON Schema. enum: `source`=nl/demo/manual, step `kind`=llm/tool/approval/export, `workflow_run.status`에 pending 포함.
+- 커넥터(Phase 15): gworkspace/gmail/outlook/browser(Playwright MCP)/http_api/mcp/db. **Obsidian 제거됨(v3.3)**.
+- 빌드 상태: v2(Phase 0~10) 배포·가동 중. v3는 **Phase 11(000008)까지 머지**. Phase 12+ 코드 미착수.
+- 클러스터: k3d `forgenta` 가동(28h), 네임스페이스 4종 Active, DB `schema_migrations` version 8.
+
+**✅ Phase 11 verify 완료 (2026-06-20)** — `make migrate-down && make migrate`로 v3.4 교정본 000008 재적용.
+DB에 `workflow_step_run_kind_check`(llm|tool|approval|export) + `workflow_run.status` pending 확인, version 8 clean, 3 테이블.
+(부수: `infra/scripts/migrate.sh`가 `"down 1"`을 단일 인자로 넘기던 버그 → 토큰 분리하도록 수정.)
+
+**다음 작업(= 즉시) — Phase 12 (workflow-svc + Compiler)**
+- `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`clone_lineage entity_type='workflow'`) + 내부 write API.
+- 게이트웨이 `/api/workflow/` + `WORKFLOW_URL`/go.work/Helm(8006)/build-images.sh 배선.
+- orchestration `app/compiler.py` + `POST /v1/workflows/compile`(SSE). **출력은 PRD §6.A 스키마로 검증 + 실패 시 재시도**.
+- verify: workflow CRUD+clone, compile SSE steps≥2 + §6.A valid. 상세 PLAN §5 Phase 12 / checklist.
+
+**코드 단계 주의(리뷰 지적)**: 내부 write API authz(NetworkPolicy+내부토큰), resume 시 `workflow_run.context`(blackboard) DB 재로드(stateless), compiler 로컬모델 비결정성→스키마검증+재시도. UI(Phase 14)는 DESIGN.md/Mantine(CLAUDE.md §3.5), 핸드오프 그래프는 DOM/SVG 1차.
+
+### 2026-06-20 — PRD v3.4 (Phase 11 merge 정합: enum + spec 스키마)
+- **enum 정합 결정(000008 ↔ PRD).** 마이그레이션은 미적용 신규 테이블이라 새 마이그레이션 없이 **000008 in-place 수정**.
+  ① `workflow.source`=`nl`/`demo`/`manual` 채택(마이그레이션 유지 → PRD 수정). ② step `kind`=`llm`/`tool`/`approval`/`export`로
+  통일 + **000008에 CHECK 추가**(spec.steps[]·workflow_step_run 동일 어휘). ③ `workflow_run.status` CHECK에 `pending` 추가.
+- **spec 스키마.** `workflow.spec` JSON 구조를 **PRD §6.A**에 고정(version/steps[seq,kind,ref,input_map,output_key,
+  requires_approval,on_error,handoff_to]). 1차 순차(linear), DAG 분기는 후속. compile verify="steps≥2 + 스키마 valid".
+- **external_file_ref.** export(Phase 15) 전용 → 000008 미포함, Phase 15 `ALTER ADD`로 명시(PRD §6).
+- **반영.** `db/migrations/000008_workflow.up.sql`(CHECK 2건), PRD 헤더 v3.4 + §0-A + §3 + §6 + §6.A. checklist Phase 12 verify.
+- **상태.** Phase 11 merge 게이트의 🔴 2건 해소. 코드/빌드는 여전히 Phase 12부터(미착수).
+
+### 2026-06-20 — PRD v3.2 → v3.3 (Obsidian 커넥터 제거)
+- **결정.** 사용자 지시로 **Obsidian 연동(Phase 15) 제거**. 근거: 사용자 로컬 볼트(Local REST API `localhost:27123`)는
+  k3d 클러스터 컨테이너에서 도달 불가 → 데스크톱 브리지/터널 필수, MVP 가치 대비 비용 과다(리뷰에서 최대 리스크로 지목).
+- **반영.** `obsidian` kind/Output Target/Input·Trigger/§7 export target·§10 격리·§11 UI·§13 Phase 15·§15 Open Decision·§16에서 삭제.
+  잔존 커넥터: `gworkspace`/`gmail`/`outlook`/`browser`(Playwright MCP)/http_api/mcp/db. Phase 15 착수순서 Google→메일→Playwright MCP.
+  PRD 헤더 v3.3 + §0-A v3.3 changelog. PLAN §5/checklist Phase 15 동기화.
+- **상태.** 문서만. 코드/빌드 없음.
+
 ### 2026-06-20 — DESIGN.md 도입 + 빌드 배선
 - **DESIGN.md 분석.** UI 디자인 운영 표준(시각적 헌법). 3계층 — PRD(무엇)/CLAUDE.md(어떻게 작업)/DESIGN.md(UI 외형·거동).
   내용: theme system(light/dark + semantic token 15종), WebGL=enhancement-only, 레이아웃/반응형(375/768/1024/1440)/

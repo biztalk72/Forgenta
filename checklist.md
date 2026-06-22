@@ -161,16 +161,19 @@
 > v3 MVP = Phase 11~14. PRD: `docs/prd/Forgenta PRD v3.md` + `docs/prd/Forgenta PRD v3.4.md`. Warp 플랜 `plan_id e7a37d0d`.
 
 ## Phase 11 — v3 데이터 파운데이션 (Loop 2 확장)
-- [ ] `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow` / `workflow_run` / `workflow_step_run`
-- [ ] 인덱스 (workspace별 목록, run별 step 조회)
-- [ ] verify: `make migrate` 후 신규 3 테이블 + migration version 8 clean
+- [x] `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow` / `workflow_run` / `workflow_step_run` (merge: main `dab88e2`, PR #3)
+- [x] 인덱스 (workspace별 목록, run별 step 조회)
+- [x] enum 정합 v3.4: `kind` CHECK(`llm|tool|approval|export`) + `workflow_run.status` `pending` + `source` `nl|demo|manual`
+- [x] verify ✅ (2026-06-20): `make migrate-down && make migrate` 재적용 후 version 8 clean + 3 테이블 +
+      `workflow_step_run_kind_check`(llm|tool|approval|export) + `workflow_run.status`에 pending 확인.
+      (부수 수정: `infra/scripts/migrate.sh`가 `"down 1"`을 단일 인자로 넘기던 버그 → 토큰 분리하도록 수정)
 
 ## Phase 12 — workflow-svc + Compiler (Loop 3 확장)
 - [ ] `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`entity_type='workflow'`)
 - [ ] 내부 write API: `POST /v1/runs`, `PATCH /v1/runs/{id}`, `POST /v1/runs/{id}/steps`, `PATCH /v1/steps/{id}`
 - [ ] 게이트웨이 `/api/workflow/` 서브트리 프록시 + `WORKFLOW_URL` / go.work / Helm(`workflow.*`,8006) / `workflow-svc.yaml` / build-images.sh
 - [ ] orchestration `app/compiler.py` + `POST /v1/workflows/compile` (SSE plan/step)
-- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 유효 spec
+- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 + spec이 PRD §6.A 스키마 valid(검증 실패 시 재시도)
 
 ## Phase 13 — Workflow Runtime (Loop 3/4)
 - [ ] orchestration `app/runtime.py`: 단계 실행(ModelRouter+providers.stream 재사용) + blackboard context handoff
@@ -186,6 +189,6 @@
 - [ ] verify: approval 생성/정지 → approve resume, reject halt + integration/e2e 워크플로우 플로우 추가
 
 ## Phase 15~17 — 후속 증분 (MVP 이후)
-- [ ] Phase 15 — Connectors + 외부 산출: `connector`(`gworkspace`/`obsidian`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프(drive.file/gmail.send/Mail.Send). Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·Obsidian 노트·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→Obsidian→메일→Playwright MCP(도메인 allowlist+격리)
+- [ ] Phase 15 — Connectors + 외부 산출: `connector`(`gworkspace`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프(drive.file/gmail.send/Mail.Send). Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→메일→Playwright MCP(도메인 allowlist+격리). (Obsidian은 v3.3에서 제외)
 - [ ] Phase 16 — 학습/이상탐지: `workflow_memory`+Qdrant RAG, `alert`/`alert_rule`
 - [ ] Phase 17 — 스케줄/UI: `workflow_schedule`+스케줄러, `/connectors`, Admin 관측/알림/개선지표

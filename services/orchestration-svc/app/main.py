@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import config, integrations
+from . import config, integrations, compiler
 from .graph import build_graph
 from .providers import stream
 from .router import ModelRouter, RouteRequest
@@ -151,3 +151,25 @@ async def chat_stream(req: ChatRequest, request: Request):
 async def run(req: ChatRequest):
     result = await graph.ainvoke({"prompt": req.prompt, "routing": req.routing})
     return {"model": result.get("model"), "output": result.get("output")}
+
+
+class CompileRequest(BaseModel):
+    description: str
+    routing: dict = {}
+
+
+@app.post("/v1/workflows/compile")
+async def workflows_compile(req: CompileRequest):
+    # NL 설명 → workflow.spec(§6.A). SSE: plan → step* → done(spec, valid)
+    chain = model_router.route(RouteRequest(**req.routing))
+    messages_desc = req.description
+
+    async def gen() -> AsyncIterator[str]:
+        yield _sse("plan", {"message": "compiling", "chain": chain})
+        spec, err, fb = await compiler.compile_spec(cfg, messages_desc, chain)
+        for st in spec.get("steps", []):
+            yield _sse("step", {"seq": st.get("seq"), "kind": st.get("kind"), "name": st.get("name")})
+        log("workflow_compile", steps=len(spec.get("steps", [])), valid=err is None, fallback=fb)
+        yield _sse("done", {"spec": spec, "valid": err is None, "error": err, "fallback": fb})
+
+    return StreamingResponse(gen(), media_type="text/event-stream")

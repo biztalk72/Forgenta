@@ -11,6 +11,7 @@ type Config struct {
 	CatalogURL       string
 	ArtifactURL      string
 	GovernanceURL    string
+	WorkflowURL      string
 }
 
 func Load() Config {
@@ -22,6 +23,7 @@ func Load() Config {
 		CatalogURL:       env("CATALOG_URL", "http://localhost:8003"),
 		ArtifactURL:      env("ARTIFACT_URL", "http://localhost:8004"),
 		GovernanceURL:    env("GOVERNANCE_URL", "http://localhost:8005"),
+		WorkflowURL:      env("WORKFLOW_URL", "http://localhost:8006"),
 	}
 }
 

@@ -45,6 +45,12 @@ governance:
   image: forgenta/governance-svc:latest
   port: 8005
 
+# v3 — workflow-svc (Phase 11/12 — PR #3/#8).
+workflow:
+  enabled: true
+  image: forgenta/workflow-svc:latest
+  port: 8006
+
 # v3.4 — inference-gateway (모델→백엔드 라우팅, 내부 전용).
 # 기본 비활성. DGX 프로필(values-dgx.yaml)에서 enable.
 inferenceGateway:
