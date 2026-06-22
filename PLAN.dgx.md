@@ -1,3 +1,6 @@
+> ⚠️ **superseded — v3.4가 흡수.** 1차 SSOT: [`PLAN.md`](PLAN.md) §6 (Phase D0~D5) + [`docs/prd/Forgenta PRD v3.4.md`](docs/prd/Forgenta PRD v3.4.md) §13.
+> 본 문서는 v2.5-dgx 스냅샷(2026-06-20)으로 레거시 참조용으로 유지된다.
+>
 > Forgenta — **DGX Spark 재구축 플랜**. `ARCHITECTURE.dgx.md`의 짝.
 > v2 베이스라인(`PLAN.md` §0~§4)과 v3 워크플로우(`PLAN.md` §5)는 호환 유지.
 > **Phase D0~D5**를 추가하고, 기존 Phase 4(Orchestration)와 Phase 1(Infra)의 일부를 DGX 프로필로 갱신한다.

@@ -6,11 +6,25 @@
 
 ---
 
+## 0-A. 현재 베이스라인 (Profile)
+
+**v3.4 / DGX Spark가 1차 런타임.** PRD: [`docs/prd/Forgenta PRD v3.4.md`](docs/prd/Forgenta PRD v3.4.md).
+- 활성 브랜치: `feat/v3.4-dgx-rebuild`
+- 호스트: NVIDIA DGX Spark (GB10 / CUDA 13 / 128GB unified / ARM64 Ubuntu)
+- 추론 1차: **vLLM + inference-gateway**(`forgenta-llm` namespace), 폴백 Ollama
+- 신규 서비스: `services/inference-gateway` (Go, 8800)
+- Phase 진행: D 시리즈(D0~D5, DGX 런타임 재배치)가 11~14(워크플로우 MVP)에 **선행**
+
+**Mac/Ollama 베이스라인(v2.5)** 은 dev profile 로 유지(§11). 호스트가 macOS인 경우 §1~§10 기존 절차.
+
+---
+
 ## 0. 프로젝트 한 줄 정의
 
 > Forgenta는 사용자의 입력(프롬프트 및 멀티모달 입력)을 해석해
 > 반복 가능한 자동화 워크플로우와 멀티모달 결과를 만들어내고,
-> 이를 에이전트/앱으로 카탈로그화·재사용·거버넌스할 수 있는
+> 이를 에이전트/앱으로 카탈로그화·재사용·거버넌스할 수 있으며,
+> **v3.4부터는 다단계 워크플로우를 자연어로 작성·승인·핸드오프 실행**할 수 있는
 > 하이브리드 에이전틱 AI 플랫폼이다.
 
 ---
@@ -18,18 +32,36 @@
 ## 1. 빌드 전 필수 확인 (Pre-flight Checklist)
 
 ```bash
-# 아래 명령을 순서대로 실행해서 모두 통과해야 빌드 시작 가능
-command -v docker   || echo "MISSING: Docker Desktop or OrbStack"
-command -v k3d      || echo "MISSING: k3d (brew install k3d)"
-command -v helm     || echo "MISSING: helm (brew install helm)"
-command -v kubectl  || echo "MISSING: kubectl (brew install kubectl)"
-command -v ollama   || echo "MISSING: ollama (brew install ollama)"
-command -v go       || echo "MISSING: go 1.22+ (brew install go)"
-command -v python3  || echo "MISSING: python 3.12+ (brew install python)"
-command -v node     || echo "MISSING: node 20+ (brew install node)"
+# 공통 (모든 프로파일)
+command -v docker   || echo "MISSING: docker (DGX) or Docker Desktop/OrbStack (Mac)"
+command -v k3d      || echo "MISSING: k3d v5.x"
+command -v helm     || echo "MISSING: helm v3"
+command -v kubectl  || echo "MISSING: kubectl"
+command -v go       || echo "MISSING: go 1.22+ (DGX: go 1.26 via go.work toolchain auto-fetch)"
+command -v python3  || echo "MISSING: python 3.12+"
+command -v node     || echo "MISSING: node 20+"
+
+# DGX 프로필 추가 (호스트가 aarch64 + GB10)
+if [[ "$(uname -m)" == "aarch64" ]] && nvidia-smi 2>/dev/null | grep -q "GB10"; then
+  command -v nvidia-ctk      || echo "MISSING: nvidia-container-toolkit"
+  command -v hf              || echo "MISSING: pip install --user --break-system-packages 'huggingface_hub[cli]'"
+  nvidia-smi | grep -q "CUDA Version: 13" || echo "WARN: CUDA<13"
+  docker info | grep -q "nvidia"          || echo "MISSING: nvidia runtime (sudo nvidia-ctk runtime configure)"
+  [[ -d /var/lib/forgenta/models ]]        || echo "MISSING: /var/lib/forgenta/{models,postgres,qdrant,minio}"
+fi
+
+# Mac 프로필 (v2.5 dev)
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  command -v ollama || echo "MISSING: ollama (brew install ollama)"
+fi
 ```
 
-**Mac 최소 사양:**
+**DGX Spark 최소 사양 (1차 베이스라인):**
+- NVIDIA DGX Spark (GB10 / CUDA 13 / 128GB unified LPDDR5x)
+- NVMe ≥ 200GB (모델 캐시 80GB + 영속화 + 빌드 캐시)
+- 외부 도달성: hf.co, nvcr.io
+
+**Mac 최소 사양 (dev profile):**
 - Apple Silicon M2/M3/M4 (ARM64)
 - RAM 32GB 이상 (64GB 권장)
 - 여유 디스크 100GB 이상
@@ -60,14 +92,16 @@ forgenta/
 │ └── pull-models.sh ← Ollama 모델 다운로드
 │
 ├── services/
-│ ├── api-gateway/ (Go)
-│ ├── identity-svc/ (Go)
-│ ├── orchestration-svc/ (Python + LangGraph)
-│ ├── headroom-proxy/ (Go)
-│ ├── catalog-svc/ (Go)
-│ ├── artifact-svc/ (Go)
-│ ├── governance-svc/ (Go)
-│ └── workflow-svc/ (Go, v3 — Workflow Fabric)
+│ ├── api-gateway/        (Go, 8000)
+│ ├── identity-svc/       (Go, 8001)
+│ ├── orchestration-svc/  (Python + LangGraph, 8002)
+│ ├── headroom-proxy/     (Go, 8787)
+│ ├── catalog-svc/        (Go, 8003)
+│ ├── artifact-svc/       (Go, 8004)
+│ ├── governance-svc/     (Go, 8005)
+│ ├── workflow-svc/       (Go, 8006 — v3 Workflow Fabric)
+│ ├── inference-gateway/  (Go, 8800 — v3.4 신규: 모델→백엔드 라우팅)
+│ └── shared/             (Go module: token/health/logging/httperr)
 │
 ├── web/ ← Frontend (React + Vite + TypeScript)
 │ └── src/
@@ -364,11 +398,11 @@ text
 
 ---
 
-## 11. DGX Spark 프로필 (Profile: v2.5-dgx)
+## 11. v3.4 DGX 프로필 (1차 베이스라인 — superseded v2.5-dgx)
 
-> 본 레포가 **NVIDIA DGX Spark (GB10 / CUDA 13 / 128GB unified / ARM64 Ubuntu)** 호스트에서 실행될 때,
-> §1 Pre-flight와 §3 Loop Harness의 일부를 **`ARCHITECTURE.dgx.md` + `PLAN.dgx.md`** 가 오버라이드한다.
-> 두 문서는 **본 §11과 함께 단일 진실 소스**다. (Mac/Ollama 베이스라인은 그대로 유효 — 호스트가 macOS면 §1~§10 사용.)
+> **v3.4에서 DGX Spark가 1차 런타임으로 승격됨**. 본 §11은 v3.4 도입 전 v2.5-dgx 프로필 메모로 유지(레거시 참조).
+> **현재 진실 소스: [`docs/prd/Forgenta PRD v3.4.md`](docs/prd/Forgenta PRD v3.4.md)** (§2/§3/§5/§13).
+> `ARCHITECTURE.dgx.md` / `PLAN.dgx.md`는 v2.5-dgx 스냅샷 — v3.4 PRD가 흡수했으며 빌드 진행 시 v3.4 PRD 우선.
 
 ### 11.1 적용 시점 (When to use DGX profile)
 - `uname -m`이 `aarch64`이고 `nvidia-smi`가 `GB10`을 보고하는 경우 → **DGX 프로필을 따른다**.

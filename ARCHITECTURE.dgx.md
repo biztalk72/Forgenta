@@ -1,3 +1,6 @@
+> ⚠️ **superseded — v3.4가 흡수.** 1차 SSOT: [`docs/prd/Forgenta PRD v3.4.md`](docs/prd/Forgenta PRD v3.4.md) §2/§3/§5/§13/§14.
+> 본 문서는 v2.5-dgx 스냅샷(2026-06-20)으로 레거시 참조용으로 유지된다.
+>
 > Forgenta 아키텍처 — **DGX Spark 프로필 (v2/v3 ⇒ v2.5-dgx 재설계)**
 > CLAUDE.md/PLAN.md(Mac+Ollama 베이스라인)의 모든 결정 중 **하드웨어·런타임·LLM 추론·모델 라우팅·관측 메트릭**
 > 항목만 DGX Spark에 맞게 재구성한 단일 진실 소스. **계약(API, DB, 로그/헬스 규격, 거버넌스)은 그대로 유지**한다.
