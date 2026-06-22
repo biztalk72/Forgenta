@@ -100,17 +100,17 @@
 - [x] go 1.26.4 (apt 1.22 + go.work `toolchain` 디렉티브 자동 다운로드 고정)
 - [x] `hf` (HuggingFace CLI 1.20) 설치 — `--break-system-packages` 경유
 - [x] 9 Go 서비스 build+vet 통과 (api-gateway/identity-svc/orchestration-svc/headroom-proxy/catalog-svc/artifact-svc/governance-svc/inference-gateway/shared)
-- [ ] nvidia-ctk runtime configure --runtime=containerd/docker → sudo 필요
-- [ ] /var/lib/forgenta/{models,postgres,qdrant,minio} → sudo 필요
-- [ ] verify: `docker run --rm --gpus all nvcr.io/nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi` → GB10 출력
+- [x] nvidia-ctk runtime configure (containerd/k3s 경유 발효 — `runtimeClassName: nvidia` 로 dcgm-exporter Pod 가동, commit 4fc747a)
+- [x] /var/lib/forgenta/{models,postgres,qdrant,minio} 디렉터리 생성 (hf/ollama/trtllm/vllm 서브디렉터리 ready, 2026-06-23 확인)
+- [~] verify: `docker run --rm --gpus all nvcr.io/nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi` → k3s native 채택으로 docker 경로는 미사용(PRD v3.4 §16.2 fallback). 대신 k3s 인-클러스터 Pod 에서 GB10 노출 검증 — D1 verify 항목 참조.
 
 ## Phase D1 — k3d + NVIDIA device plugin (GPU passthrough)
 - [x] cluster.yaml ARM64 image pin + hostPath /var/lib/forgenta/models 마운트
 - [x] namespaces.yaml에 `forgenta-llm` 추가 (5개)
 - [x] infra/k3d/nvidia-device-plugin.yaml (vendored DaemonSet)
 - [x] bootstrap.sh DGX 분기 (GB10 감지 → --gpus all + device plugin install + rollout 대기)
-- [ ] 클러스터 재생성 + `kubectl describe node | grep nvidia.com/gpu` = 1
-- [ ] verify: GPU 테스트 Pod에서 nvidia-smi 출력
+- [x] k3s native + device plugin v0.17.4 — `kubectl describe node | grep nvidia.com/gpu` = 1 ✅ (commit 4fc747a, 2026-06-23 재확인)
+- [x] verify: GPU 패스스루 Pod — dcgm-exporter (`runtimeClassName: nvidia` + `nvidia.com/gpu:1`) 가 GB10 NVML 메트릭 13종 export (driver 580.159.03, temp 39C, idle power 4.46W). nvidia-smi 등가 검증 ✅
 
 ## Phase D2 — Inference Stack (vLLM + Ollama fallback)
 - [x] infra/helm/forgenta-llm 차트 (Chart.yaml + values + _helpers.tpl)
@@ -145,8 +145,8 @@
 - [x] gpu-inference.json (TTFT p95<0.7s SLO 임계, KV cache, fallback rate, GPU util/mem/power)
 - [x] Prometheus scrape configs (dcgm-exporter, vllm, inference-gateway)
 - [x] helm lint clean. 비GPU 부분 가동(Prom+Grafana Running)
-- [ ] DCGM Exporter 가동 (nvidia 런타임 후)
-- [ ] verify: TTFT p95 < 0.7s, Executor 32B ≥ 60 tok/s, e2e GPU 회귀 케이스
+- [x] DCGM Exporter 4.1.1 가동 ✅ (3.x → 4.1.1 승격으로 GB10 인식, 13 DCGM_FI 시계열 export, Prometheus targets up — commit 4fc747a)
+- [ ] verify: TTFT p95 < 0.7s, Executor 32B ≥ 60 tok/s, e2e GPU 회귀 케이스 (vLLM 백엔드 가동 후)
 
 ## Phase D6 (선택) — NIM / TensorRT-LLM 승격
 - [ ] Planner/Executor 안정화 후 NGC NIM 또는 TRT-LLM 엔진 빌드
