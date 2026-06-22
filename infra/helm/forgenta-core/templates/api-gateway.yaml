@@ -35,6 +35,8 @@ spec:
               value: "http://artifact-svc:{{ .Values.artifact.port }}"
             - name: GOVERNANCE_URL
               value: "http://governance-svc:{{ .Values.governance.port }}"
+            - name: WORKFLOW_URL
+              value: "http://workflow-svc:{{ .Values.workflow.port }}"
           readinessProbe:
             httpGet:
               path: /health

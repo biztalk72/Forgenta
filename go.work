@@ -8,4 +8,5 @@ use (
 	./services/headroom-proxy
 	./services/identity-svc
 	./services/shared
+	./services/workflow-svc
 )

@@ -44,3 +44,8 @@ governance:
   enabled: true
   image: forgenta/governance-svc:latest
   port: 8005
+
+workflow:
+  enabled: true
+  image: forgenta/workflow-svc:latest
+  port: 8006

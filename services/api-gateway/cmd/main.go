@@ -56,11 +56,14 @@ func main() {
 	mux.Handle("GET /api/identity/auth/me", middleware.Auth(cfg.JWTSecret, identityProxy))
 	mux.Handle("POST /api/orchestration/v1/chat/stream", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
 	mux.Handle("POST /api/orchestration/v1/run", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
+	// v3: 워크플로우 컴파일(SSE) — orchestration 프록시(FlushInterval=-1) 재사용
+	mux.Handle("POST /api/orchestration/v1/workflows/compile", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
 
-	// Catalog/Artifact: 서브트리 전체를 JWT 보호 후 프록시 (모든 메서드)
+	// Catalog/Artifact/Governance/Workflow: 서브트리 전체를 JWT 보호 후 프록시 (모든 메서드)
 	mux.Handle("/api/catalog/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/catalog", cfg.CatalogURL, log)))
 	mux.Handle("/api/artifact/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/artifact", cfg.ArtifactURL, log)))
 	mux.Handle("/api/governance/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/governance", cfg.GovernanceURL, log)))
+	mux.Handle("/api/workflow/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/workflow", cfg.WorkflowURL, log)))
 
 	handler := middleware.RateLimit(20, 40, mux)
 
