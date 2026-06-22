@@ -17,6 +17,7 @@ docker build --platform $PLATFORM -f services/catalog-svc/Dockerfile -t forgenta
 docker build --platform $PLATFORM -f services/artifact-svc/Dockerfile -t forgenta/artifact-svc:latest .
 docker build --platform $PLATFORM -f services/governance-svc/Dockerfile -t forgenta/governance-svc:latest .
 docker build --platform $PLATFORM -f services/workflow-svc/Dockerfile -t forgenta/workflow-svc:latest .
+docker build --platform $PLATFORM -f services/inference-gateway/Dockerfile -t forgenta/inference-gateway:latest .
 docker build --platform $PLATFORM -t forgenta/web:latest web
 
 echo "=== import into k3d ==="
@@ -29,5 +30,6 @@ k3d image import \
   forgenta/artifact-svc:latest \
   forgenta/governance-svc:latest \
   forgenta/workflow-svc:latest \
+  forgenta/inference-gateway:latest \
   forgenta/web:latest \
   -c forgenta

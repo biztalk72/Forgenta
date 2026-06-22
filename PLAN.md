@@ -1,8 +1,16 @@
-> Forgenta v2 재구축 플랜. PRD v2 + CLAUDE.md를 단일 진실 소스로 하는 단계별 빌드 계획.
+> Forgenta 재구축 플랜. **현재 1차 PRD: [`docs/prd/Forgenta PRD v3.4.md`](docs/prd/Forgenta PRD v3.4.md)** (DGX Spark 베이스라인).
+> 본 문서는 v2 베이스라인 + v3 워크플로우 플랜을 유지하며 v3.4 DGX 단계(D0~D5)를 §6으로 추가한다.
 
-# Forgenta v2 재구축 플랜 (Rebuild Plan)
+# Forgenta 재구축 플랜 (Rebuild Plan — v2 → v3 → v3.4)
 
-Version: 2.0 | Date: 2026-06-19 | Baseline commit: `8833013` (v2 baseline) | Archive: `archive/v1-fastapi`
+Version: 3.4 | Date: 2026-06-22 | Branch: `feat/v3.4-dgx-rebuild` | v2 baseline commit: `8833013` | Archive: `archive/v1-fastapi`
+
+> 단계 순서 (v3.4 우선):
+> - **Phase D0~D5** (§6) — DGX 런타임 재배치 (vLLM + inference-gateway). **§3 Phase 11~14에 선행.**
+> - Phase 0~10 (§2) — v2 베이스 (완료, 클러스터 가동 중)
+> - Phase 11~14 (§5) — v3 워크플로우 MVP (D4 완료 후 의미)
+> - Phase 15~17 (§5) — v3 후속 (Connectors / 학습 / 스케줄·UI)
+> - Phase D6/D7 (선택) — NIM 승격, 2-DGX 클러스터
 
 ---
 
@@ -175,3 +183,45 @@ Loop 2(DB)/Loop 3(서비스)/Loop 4(통합)/Loop 5(프론트)/Loop 6(E2E)를 재
 - `make migrate`(v8) + workflow-svc build/test + 이미지 빌드 성공.
 - compile SSE 유효 spec, 2단계 run handoff, 단계 승인 resume/halt 동작.
 - `make integration-test`/`make e2e-test`에 워크플로우 플로우 추가 후 통과 + 기존 회귀 유지.
+
+---
+
+## 6. Forgenta v3.4 플랜 (DGX Spark 런타임 재배치 — Phase D0~D5)
+> PRD: [`docs/prd/Forgenta PRD v3.4.md`](docs/prd/Forgenta PRD v3.4.md). 브랜치 `feat/v3.4-dgx-rebuild`.
+> `ARCHITECTURE.dgx.md` / `PLAN.dgx.md` (v2.5-dgx 스냅샷)을 흡수·갱신한 정식 플랜.
+
+### 6.0 무엇을, 왜
+v2/v3는 Mac + Ollama 가정. v3.4는 **NVIDIA DGX Spark (GB10/CUDA13/128GB unified/ARM64)** 위에 vLLM (+NIM/TRT-LLM/Ollama fallback) + inference-gateway 추상화를 도입.
+계약(API/DB/JSON 로그/RBAC/UI)은 무변경 (PRD v3.4 §12 불변 매트릭스).
+
+### 6.1 신규/변경 자산
+- 신규 서비스: `services/inference-gateway` (Go, 8800) — 모델→백엔드 라우팅 + sensitive 가드 + fallback chain + Prom 메트릭.
+- 신규 네임스페이스: `forgenta-llm` — GPU 점유 파드 격리 (vLLM + Ollama fallback).
+- 신규 Helm 차트: `infra/helm/forgenta-llm` (vllm-planner/executor/router/summarizer/embed + ollama + priorityClass).
+- 신규 스크립트: `infra/scripts/pull-models-dgx.sh` (`hf download` 기반).
+- forgenta-obs 확장: Prometheus + DCGM Exporter + Grafana 대시보드 (`gpu-inference.json`).
+- orchestration-svc 재배선: providers.py를 ig 경유 OpenAI-호환 SSE로 (Ollama 직접은 폴백).
+
+### 6.2 Phase D0~D5 (각 verify 게이트 필수)
+- **D0** — Host setup: nvidia-ctk runtime configure(containerd+docker), `/var/lib/forgenta/{models,…}`, go 1.26 toolchain, hf CLI.
+  - verify: `docker run --rm --gpus all nvcr.io/nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi` → GB10
+- **D1** — k3d + GPU passthrough + `forgenta-llm` namespace + NVIDIA device plugin DaemonSet.
+  - verify: `kubectl describe node | grep nvidia.com/gpu` = 1
+- **D2** — `infra/helm/forgenta-llm` 차트 + 모델 풀.
+  - verify: `/v1/models` 노출, SSE 토큰 수신, DCGM GPU util > 0
+- **D3** — `services/inference-gateway` 신설 (Go, 8800).
+  - verify: SSE pass-through, planner down → fallback chain, fallback 메트릭 기록
+- **D4** — orchestration-svc 재배선 (providers.py / router.py / config / main).
+  - verify: `make integration-test` + usage_event `backend=vllm` 기록
+- **D5** — Observability + SLO 게이트.
+  - verify: TTFT p95 < 0.7s (Planner 72B), Executor 32B ≥ 60 tok/s, e2e GPU 회귀 케이스
+
+### 6.3 v3.4 MVP 정의
+- **MVP = D0~D5 + Phase 11~14** ("DGX 위에서 vLLM 추론 + 워크플로우 2단계 핸드오프 + 단계 승인 resume" 종단 동작).
+- **Non-goals (v3.4 초기):** D6(NIM 승격), D7(2-DGX), Phase 15~17 (Connectors/학습/스케줄·UI).
+
+### 6.4 현재 진행 상태 (브랜치 `feat/v3.4-dgx-rebuild`, commit `f76377e`)
+- 코드/매니페스트 D0~D5 전체 작성 완료.
+- 비GPU 부분 in-cluster 가동: inference-gateway + Prometheus + Grafana + 8개 v2 서비스.
+- 잔여: sudo(nvidia 런타임 등록 + `/var/lib/forgenta/`) → 클러스터 재생성(D1 verify) → 모델 풀(D2) → SLO 측정(D5).
+- 자세한 체크박스: [`checklist.md`](checklist.md) Phase D0~D5 섹션.

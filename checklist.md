@@ -91,8 +91,74 @@
 - [ ] Prometheus 메트릭 → 후속 (서비스 /metrics 계측 필요). 현재 obs는 로그 중심.
 - [ ] OTel 트레이싱 → 후속
 
+# Forgenta v3.4 체크리스트 — DGX Spark 런타임 재배치 (Phase D0~D5)
+> PRD: `docs/prd/Forgenta PRD v3.4.md` (v3.2 + DGX 프로필 합본). 브랜치 `feat/v3.4-dgx-rebuild`.
+> v3.4 MVP = **Phase D0~D5 + Phase 11~14**. D 시리즈가 11번 시리즈에 **선행**.
+
+## Phase D0 — 호스트 사전점검 (DGX 프로필)
+- [x] GB10 GPU + CUDA 13 + nvidia-ctk 1.19 확인
+- [x] go 1.26.4 (apt 1.22 + go.work `toolchain` 디렉티브 자동 다운로드 고정)
+- [x] `hf` (HuggingFace CLI 1.20) 설치 — `--break-system-packages` 경유
+- [x] 9 Go 서비스 build+vet 통과 (api-gateway/identity-svc/orchestration-svc/headroom-proxy/catalog-svc/artifact-svc/governance-svc/inference-gateway/shared)
+- [ ] nvidia-ctk runtime configure --runtime=containerd/docker → sudo 필요
+- [ ] /var/lib/forgenta/{models,postgres,qdrant,minio} → sudo 필요
+- [ ] verify: `docker run --rm --gpus all nvcr.io/nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi` → GB10 출력
+
+## Phase D1 — k3d + NVIDIA device plugin (GPU passthrough)
+- [x] cluster.yaml ARM64 image pin + hostPath /var/lib/forgenta/models 마운트
+- [x] namespaces.yaml에 `forgenta-llm` 추가 (5개)
+- [x] infra/k3d/nvidia-device-plugin.yaml (vendored DaemonSet)
+- [x] bootstrap.sh DGX 분기 (GB10 감지 → --gpus all + device plugin install + rollout 대기)
+- [ ] 클러스터 재생성 + `kubectl describe node | grep nvidia.com/gpu` = 1
+- [ ] verify: GPU 테스트 Pod에서 nvidia-smi 출력
+
+## Phase D2 — Inference Stack (vLLM + Ollama fallback)
+- [x] infra/helm/forgenta-llm 차트 (Chart.yaml + values + _helpers.tpl)
+- [x] vllm-{planner,executor,router,summarizer,embed} 템플릿 (planner+ollama 1차 enable, 나머지 D2-second에서)
+- [x] Ollama 폴백 (init 컨테이너로 qwen3:1.7b/8b pre-pull)
+- [x] priorityClass `llm-critical`
+- [x] pull-models-dgx.sh (hf download, Planner/Executor/Router/Summarizer/Embed)
+- [x] helm lint clean
+- [ ] 클러스터 배포 후 `/v1/models` 노출 + SSE 토큰 수신 + DCGM util > 0
+
+## Phase D3 — services/inference-gateway (Go, 8800)
+- [x] cmd/main + config + router(glob+fallback) + proxy(SSE pass-through+5xx detect) + server(OpenAI-호환 + sensitive 가드) + metrics(Prom)
+- [x] go.work 등록, build/vet/test 통과 (router_test 3/3)
+- [x] forgenta-core/templates/inference-gateway.yaml (Deployment+Service ClusterIP+ConfigMap 라우팅)
+- [x] values-dgx.yaml에서 enable, build-images.sh 배선
+- [x] 비GPU in-cluster 가동 검증: /health 200, unknown→404, claude→403, vllm-planner→502(no backend)
+- [x] Prom 메트릭 수집 확인 (`route_decisions_total`, `requests_total{status=404/403/502}`)
+- [ ] vLLM 백엔드 가동 후 정상 라우팅 + fallback 시나리오 (D2 후)
+
+## Phase D4 — orchestration-svc 재배선
+- [x] config.py: INFERENCE_GATEWAY_URL + planner/summarizer/embed/critic 기본값 (v3.4 §3.5)
+- [x] providers.py: ig OpenAI-호환 SSE + sensitive 헤더 전파 + ollama 직접 폴백
+- [x] router.py: planner/long_context + `_is_local`에 vllm/nim/trtllm 추가
+- [x] main.py: ready aggregate(ig+ollama), ttft_ms+backend usage_event 필드
+- [x] orchestration-svc.yaml에 신규 모델 env 옵셔널 분기
+- [x] router_test 7/7 통과 (DGX + Mac 베이스라인 동시)
+- [x] in-cluster 가동: `/health/ready` 200, 신규 image rollout 성공
+- [ ] integration-test 갱신 (backend=vllm usage_event 기록)
+
+## Phase D5 — Observability + SLO 게이트
+- [x] forgenta-obs 차트에 Prometheus + DCGM Exporter + Grafana Prom 데이터소스 + 대시보드 provisioning
+- [x] gpu-inference.json (TTFT p95<0.7s SLO 임계, KV cache, fallback rate, GPU util/mem/power)
+- [x] Prometheus scrape configs (dcgm-exporter, vllm, inference-gateway)
+- [x] helm lint clean. 비GPU 부분 가동(Prom+Grafana Running)
+- [ ] DCGM Exporter 가동 (nvidia 런타임 후)
+- [ ] verify: TTFT p95 < 0.7s, Executor 32B ≥ 60 tok/s, e2e GPU 회귀 케이스
+
+## Phase D6 (선택) — NIM / TensorRT-LLM 승격
+- [ ] Planner/Executor 안정화 후 NGC NIM 또는 TRT-LLM 엔진 빌드
+- [ ] inference-gateway 라우팅 테이블 swap 무중단
+
+## Phase D7 (선택) — 2-DGX 클러스터
+- [ ] 2번째 노드 추가, vLLM `--tensor-parallel-size 2`로 120B+ 서빙
+
+---
+
 # Forgenta v3 체크리스트 (Workflow Fabric — PLAN.md §5 / CLAUDE.md Loop 7 매핑)
-> v3 MVP = Phase 11~14. PRD: `docs/prd/Forgenta PRD v3.md`. Warp 플랜 `plan_id e7a37d0d`.
+> v3 MVP = Phase 11~14. PRD: `docs/prd/Forgenta PRD v3.md` + `docs/prd/Forgenta PRD v3.4.md`. Warp 플랜 `plan_id e7a37d0d`.
 
 ## Phase 11 — v3 데이터 파운데이션 (Loop 2 확장)
 - [x] `db/migrations/000008_workflow.up.sql`/`.down.sql`: `workflow` / `workflow_run` / `workflow_step_run` (merge: main `dab88e2`, PR #3)

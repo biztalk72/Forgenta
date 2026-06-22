@@ -25,10 +25,30 @@ spec:
               value: {{ .Values.orchestration.port | quote }}
             - name: OLLAMA_HOST
               value: {{ .Values.ollamaHost | quote }}
+            {{- if .Values.inferenceGatewayURL }}
+            - name: INFERENCE_GATEWAY_URL
+              value: {{ .Values.inferenceGatewayURL | quote }}
+            {{- end }}
+            {{- if .Values.orchestration.plannerModel }}
+            - name: DEFAULT_PLANNER_MODEL
+              value: {{ .Values.orchestration.plannerModel | quote }}
+            {{- end }}
             - name: DEFAULT_EXECUTOR_MODEL
               value: {{ .Values.orchestration.executorModel | quote }}
             - name: DEFAULT_ROUTER_MODEL
               value: {{ .Values.orchestration.routerModel | quote }}
+            {{- if .Values.orchestration.summarizerModel }}
+            - name: DEFAULT_SUMMARIZER_MODEL
+              value: {{ .Values.orchestration.summarizerModel | quote }}
+            {{- end }}
+            {{- if .Values.orchestration.embedModel }}
+            - name: DEFAULT_EMBED_MODEL
+              value: {{ .Values.orchestration.embedModel | quote }}
+            {{- end }}
+            {{- if .Values.orchestration.criticModel }}
+            - name: DEFAULT_CRITIC_MODEL
+              value: {{ .Values.orchestration.criticModel | quote }}
+            {{- end }}
             - name: HEADROOM_PROXY_URL
               value: "http://headroom-proxy:{{ .Values.headroomProxy.port }}"
             - name: HEADROOM_ENABLED

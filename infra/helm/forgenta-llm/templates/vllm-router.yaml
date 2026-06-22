@@ -1,0 +1,3 @@
+{{- if .Values.vllm.router.enabled }}
+{{- include "forgenta-llm.vllm-deployment" (dict "root" . "svc" .Values.vllm.router) }}
+{{- end }}

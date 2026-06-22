@@ -56,6 +56,34 @@ echo "[4] auth enforced (no token → 401)"
 CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/catalog/v1/agents")
 check "unauthenticated rejected" "401" "$CODE"
 
+echo "[5] inference-gateway (v3.4 — 클러스터 내부 전용, 게이트웨이 미경유)"
+# Mac 베이스라인(미배포)에서는 [5] 자체 SKIP. DGX 프로필에서만 실행.
+if kubectl -n "$NS" get svc inference-gateway >/dev/null 2>&1; then
+  IG_LPORT=18800
+  kubectl port-forward -n "$NS" svc/inference-gateway ${IG_LPORT}:8800 >/dev/null 2>&1 &
+  IG_PID=$!
+  for _ in $(seq 1 20); do curl -sf "http://localhost:${IG_LPORT}/health" >/dev/null 2>&1 && break; sleep 1; done
+
+  HEALTH=$(curl -s "http://localhost:${IG_LPORT}/health" | python3 -c 'import sys,json;print(json.load(sys.stdin)["status"])')
+  check "ig /health" "ok" "$HEALTH"
+
+  R_UNK=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:${IG_LPORT}/v1/chat/completions" \
+    -H 'Content-Type: application/json' -d '{"model":"completely-unknown-model","messages":[{"role":"user","content":"hi"}]}')
+  check "ig unknown model → 404" "404" "$R_UNK"
+
+  R_EXT=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:${IG_LPORT}/v1/chat/completions" \
+    -H 'Content-Type: application/json' -d '{"model":"claude-3-7-sonnet","messages":[{"role":"user","content":"hi"}]}')
+  check "ig external 모델 → 403" "403" "$R_EXT"
+
+  MET=$(curl -s "http://localhost:${IG_LPORT}/metrics" | grep -c "^inference_gateway_route_decisions_total" || true)
+  if [ "$MET" -ge 1 ]; then echo "  PASS ig metrics emitted"; pass=$((pass+1));
+  else echo "  FAIL ig metrics missing"; fail=$((fail+1)); fi
+
+  kill $IG_PID 2>/dev/null || true
+else
+  echo "  SKIP inference-gateway not deployed (Mac baseline)"
+fi
+
 echo "─────────────────────────────"
 echo "integration: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

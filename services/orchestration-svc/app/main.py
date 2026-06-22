@@ -22,9 +22,25 @@ def _provider(model: str | None) -> str:
 
 VERSION = "0.1.0"
 cfg = config.load()
-model_router = ModelRouter(executor=cfg.executor_model)
+model_router = ModelRouter(
+    executor=cfg.executor_model,
+    planner=cfg.planner_model,
+    summarizer=cfg.summarizer_model,
+    coder=cfg.executor_model,           # PRD v3.4 §3.5: coder=executor (qwen3-coder-32b)
+    critic=cfg.critic_model,
+)
 graph = build_graph(cfg, model_router)
 app = FastAPI(title="orchestration-svc")
+
+
+def _backend(model: str | None) -> str:
+    """모델 prefix 로 backend 분류 (usage_event/log 의 `backend` 필드)."""
+    if not model:
+        return ""
+    if "/" not in model:
+        # claude/gpt/gemini → external
+        return "external"
+    return model.split("/", 1)[0]       # vllm | ollama | nim | trtllm
 
 
 def log(msg: str, **fields):
@@ -52,18 +68,26 @@ def health():
 
 @app.get("/health/ready")
 async def ready():
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as c:
+    """readiness — inference-gateway 가 설정되어 있으면 그쪽을 우선 체크, 없으면 ollama."""
+    checks: dict[str, str] = {}
+    async with httpx.AsyncClient(timeout=3.0) as c:
+        if cfg.inference_gateway_url:
+            try:
+                r = await c.get(f"{cfg.inference_gateway_url}/health/ready")
+                checks["inference_gateway"] = "ok" if r.status_code == 200 else "unhealthy"
+            except httpx.HTTPError:
+                checks["inference_gateway"] = "unhealthy"
+        try:
             r = await c.get(f"{cfg.ollama_host}/api/version")
-            ok = r.status_code == 200
-    except httpx.HTTPError:
-        ok = False
-    status = "ok" if ok else "unhealthy"
-    code = 200 if ok else 503
+            checks["ollama"] = "ok" if r.status_code == 200 else "unhealthy"
+        except httpx.HTTPError:
+            checks["ollama"] = "unhealthy"
+    ok = any(v == "ok" for v in checks.values())
     return JSONResponse(
-        status_code=code,
-        content={"status": status, "service": "orchestration-svc", "version": VERSION,
-                 "checks": {"ollama": "ok" if ok else "unhealthy"}},
+        status_code=200 if ok else 503,
+        content={"status": "ok" if ok else "unhealthy",
+                 "service": "orchestration-svc", "version": VERSION,
+                 "checks": checks},
     )
 
 
@@ -85,10 +109,14 @@ async def chat_stream(req: ChatRequest, request: Request):
     async def gen() -> AsyncIterator[str]:
         yield _sse("meta", {"chain": chain})
         start = time.time()
+        first_token_at: float | None = None
         served, ntok = None, 0
+        sensitive = bool(req.routing.get("sensitive", False))
         for model in chain:
             try:
-                async for tok in stream(cfg, model, messages):
+                async for tok in stream(cfg, model, messages, sensitive=sensitive):
+                    if first_token_at is None:
+                        first_token_at = time.time()
                     ntok += 1
                     yield _sse("token", {"text": tok})
                 served = model
@@ -97,19 +125,24 @@ async def chat_stream(req: ChatRequest, request: Request):
                 yield _sse("fallback", {"model": model, "reason": str(e)})
                 continue
         latency_ms = int((time.time() - start) * 1000)
-        log("llm_call_complete", model=served, provider=_provider(served),
+        ttft_ms = int((first_token_at - start) * 1000) if first_token_at else None
+        backend = _backend(served)
+        log("llm_call_complete", model=served, provider=_provider(served), backend=backend,
             agent_id=req.agent_id, prompt_tokens=prompt_tok, completion_tokens=ntok,
             original_tokens=orig_tok, compressed_tokens=comp_tok,
-            latency_ms=latency_ms, success=served is not None)
+            latency_ms=latency_ms, ttft_ms=ttft_ms, success=served is not None)
         await integrations.record_usage(cfg, ws, user, {
             "agent_id": req.agent_id,
-            "provider": _provider(served), "model": served or "",
+            "provider": _provider(served), "backend": backend, "model": served or "",
             "prompt_tokens": prompt_tok, "completion_tokens": ntok,
             "original_tokens": orig_tok, "compressed_tokens": comp_tok,
-            "latency_ms": latency_ms, "success": served is not None,
+            "latency_ms": latency_ms, "ttft_ms": ttft_ms,
+            "success": served is not None,
         })
-        yield _sse("done", {"model": served, "completion_tokens": ntok,
-                            "latency_ms": latency_ms, "success": served is not None})
+        yield _sse("done", {"model": served, "backend": backend,
+                            "completion_tokens": ntok,
+                            "latency_ms": latency_ms, "ttft_ms": ttft_ms,
+                            "success": served is not None})
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 

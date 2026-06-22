@@ -1,0 +1,13 @@
+apiVersion: v2
+name: forgenta-llm
+description: Forgenta LLM 추론 스택 (vLLM + Ollama fallback) — DGX Spark GPU 점유 파드 격리
+type: application
+version: 0.1.0
+appVersion: "3.4.0"
+home: https://github.com/forgenta
+keywords:
+  - llm
+  - vllm
+  - ollama
+  - dgx-spark
+  - inference

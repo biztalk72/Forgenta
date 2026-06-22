@@ -1,0 +1,135 @@
+# forgenta-llm — vLLM + Ollama 추론 스택 (DGX Spark, NVFP4/FP8)
+# 모델 가중치는 hostPath /var/lib/forgenta/models (cluster.yaml volumes 매핑)
+# GPU passthrough: NVIDIA device plugin이 nvidia.com/gpu 자원 노출 (bootstrap.sh)
+
+namespace: forgenta-llm
+
+# 호스트 모델 캐시 디렉터리 (Pod에 /models로 마운트)
+modelsHostPath: /var/lib/forgenta/models
+
+# 공통 환경
+common:
+  hfHome: /models/hf
+  imagePullPolicy: IfNotPresent
+  # 운영 모드 enforce: 모델 가중치는 read-only 마운트
+  readOnlyModels: true
+
+# ── 1차 추론: vLLM ────────────────────────────────────────────
+vllm:
+  # 공식 OpenAI 호환 컨테이너. ARM64+CUDA13 빌드는 nvcr.io/nvidia/vllm 권장.
+  # 실제 가용 태그는 Phase D0에서 확정 (PRD v3.4 §16 신규 #5).
+  image: vllm/vllm-openai:latest
+  port: 8000
+
+  # Planner — Qwen3-72B Instruct NVFP4 (1 GPU 전유)
+  planner:
+    enabled: true
+    name: vllm-planner
+    model: Qwen/Qwen3-72B-Instruct
+    servedModelName: qwen3-72b-instruct-nvfp4
+    quantization: nvfp4         # NVFP4 가중치 사용 (가용성은 D0에서 확정)
+    maxModelLen: 32768
+    tensorParallelSize: 1
+    gpuMemoryUtilization: 0.85
+    extraArgs: []
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "2"
+        memory: 16Gi
+
+  # Executor — Qwen3-Coder-32B FP8
+  executor:
+    enabled: false              # D2-second: planner 안정화 후 enable
+    name: vllm-executor
+    model: Qwen/Qwen3-Coder-32B-Instruct
+    servedModelName: qwen3-coder-32b-fp8
+    quantization: fp8
+    maxModelLen: 32768
+    tensorParallelSize: 1
+    gpuMemoryUtilization: 0.80
+    extraArgs: []
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "2"
+        memory: 12Gi
+
+  # Router — Qwen3-1.7B FP16
+  router:
+    enabled: false
+    name: vllm-router
+    model: Qwen/Qwen3-1.7B
+    servedModelName: qwen3-1.7b
+    quantization: ""
+    maxModelLen: 16384
+    tensorParallelSize: 1
+    gpuMemoryUtilization: 0.20
+    extraArgs: []
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "1"
+        memory: 6Gi
+
+  # Summarizer — Qwen3-8B FP8
+  summarizer:
+    enabled: false
+    name: vllm-summarizer
+    model: Qwen/Qwen3-8B
+    servedModelName: qwen3-8b-fp8
+    quantization: fp8
+    maxModelLen: 32768
+    tensorParallelSize: 1
+    gpuMemoryUtilization: 0.35
+    extraArgs: []
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "1"
+        memory: 8Gi
+
+  # Embed — bge-m3
+  embed:
+    enabled: false
+    name: vllm-embed
+    model: BAAI/bge-m3
+    servedModelName: bge-m3
+    task: embed
+    maxModelLen: 8192
+    tensorParallelSize: 1
+    gpuMemoryUtilization: 0.10
+    extraArgs: []
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "1"
+        memory: 4Gi
+
+# ── 3차 추론: Ollama (fallback) ────────────────────────────────
+ollama:
+  enabled: true
+  name: ollama
+  image: ollama/ollama:latest
+  port: 11434
+  # 1.7B/8B 폴백 풀 — pull-models-dgx.sh 가 미리 다운로드
+  models:
+    - qwen3:1.7b
+    - qwen3:8b
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+    requests:
+      cpu: "1"
+      memory: 6Gi
+
+# ── Priority Class (자원 경합 시 LLM 우선) ─────────────────────
+priorityClass:
+  create: true
+  name: llm-critical
+  value: 1000

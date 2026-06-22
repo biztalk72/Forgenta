@@ -1,5 +1,7 @@
 go 1.26
 
+toolchain go1.26.4
+
 use (
 	./services/api-gateway
 	./services/artifact-svc
@@ -7,6 +9,7 @@ use (
 	./services/governance-svc
 	./services/headroom-proxy
 	./services/identity-svc
+	./services/inference-gateway
 	./services/shared
 	./services/workflow-svc
 )

@@ -1,0 +1,72 @@
+{{- if .Values.dcgmExporter.enabled }}
+# DCGM Exporter — NVIDIA GPU 메트릭 (PRD v3.4 §14.1).
+# DaemonSet 형태로 GPU 노드에 배치. forgenta-llm namespace 가 아닌 obs 에서 운영(관측 격리).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dcgm-exporter
+spec:
+  selector:
+    matchLabels:
+      app: dcgm-exporter
+  template:
+    metadata:
+      labels:
+        app: dcgm-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.dcgmExporter.port }}"
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: dcgm-exporter
+          image: {{ .Values.dcgmExporter.image }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DCGM_EXPORTER_LISTEN
+              value: ":{{ .Values.dcgmExporter.port }}"
+            - name: DCGM_EXPORTER_KUBERNETES
+              value: "true"
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.dcgmExporter.port }}
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            capabilities:
+              add: ["SYS_ADMIN"]
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: pod-resources
+              mountPath: /var/lib/kubelet/pod-resources
+              readOnly: true
+      volumes:
+        - name: pod-resources
+          hostPath:
+            path: /var/lib/kubelet/pod-resources
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dcgm-exporter
+  labels:
+    app: dcgm-exporter
+spec:
+  type: ClusterIP
+  selector:
+    app: dcgm-exporter
+  ports:
+    - name: metrics
+      port: {{ .Values.dcgmExporter.port }}
+      targetPort: metrics
+{{- end }}
