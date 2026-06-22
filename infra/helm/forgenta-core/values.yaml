@@ -44,3 +44,42 @@ governance:
   enabled: true
   image: forgenta/governance-svc:latest
   port: 8005
+
+# v3.4 — inference-gateway (모델→백엔드 라우팅, 내부 전용).
+# 기본 비활성. DGX 프로필(values-dgx.yaml)에서 enable.
+inferenceGateway:
+  enabled: false
+  image: forgenta/inference-gateway:latest
+  port: 8800
+  # 라우팅 테이블 YAML — ConfigMap에 그대로 저장 후 /etc/inference-gateway/routes.yaml 로 마운트
+  routes: |
+    routes:
+      - match: "qwen3-72b-*"
+        backend: "vllm-planner"
+        fallback: ["vllm-summarizer", "ollama"]
+      - match: "qwen3-coder-32b*"
+        backend: "vllm-executor"
+        fallback: ["ollama"]
+      - match: "qwen3-1.7b*"
+        backend: "vllm-router"
+        fallback: ["ollama"]
+      - match: "qwen3-8b*"
+        backend: "vllm-summarizer"
+        fallback: ["ollama"]
+      - match: "bge-*"
+        backend: "vllm-embed"
+      - match: "ollama/*"
+        backend: "ollama"
+      - match: "claude-*"
+        backend: "external"
+      - match: "gpt-*"
+        backend: "external"
+      - match: "gemini-*"
+        backend: "external"
+    backends:
+      vllm-planner:    "http://vllm-planner.forgenta-llm:8000"
+      vllm-executor:   "http://vllm-executor.forgenta-llm:8000"
+      vllm-router:     "http://vllm-router.forgenta-llm:8000"
+      vllm-summarizer: "http://vllm-summarizer.forgenta-llm:8000"
+      vllm-embed:      "http://vllm-embed.forgenta-llm:8000"
+      ollama:          "http://ollama.forgenta-llm:11434"

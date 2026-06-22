@@ -1,4 +1,4 @@
-# forgenta-obs 차트 기본값 - 로그 관측(Loki+promtail+Grafana). Prometheus 메트릭은 후속(서비스 /metrics 필요)
+# forgenta-obs 차트 기본값 (v3.4 — Loki/Prom/Grafana + DCGM Exporter, GPU & Inference 대시보드)
 loki:
   enabled: true
   image: grafana/loki:3.1.1
@@ -8,3 +8,16 @@ promtail:
 grafana:
   enabled: true
   image: grafana/grafana:11.2.0
+
+# Prometheus (v3.4 — vLLM/inference-gateway/DCGM 메트릭 수집)
+prometheus:
+  enabled: true
+  image: prom/prometheus:v2.54.0
+  retention: 7d
+  scrapeInterval: 15s
+
+# DCGM Exporter (DGX 프로필 — GPU 노드 메트릭)
+dcgmExporter:
+  enabled: true
+  image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.7-3.5.0-ubuntu22.04
+  port: 9400

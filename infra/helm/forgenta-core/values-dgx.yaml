@@ -1,9 +1,17 @@
-# forgenta-core DGX Spark overrides (Phase D4 — orchestration rewire).
-# Uses the host Ollama (already running on DGX host :11434) via host.k3d.internal.
-# Model picks reflect what is actually pulled on the host today; can grow to 32B/72B once vLLM lands.
+# forgenta-core DGX Spark overrides (PRD v3.4 §3, Phase D4 — orchestration rewire).
+# vLLM 정식 도입 후 inference-gateway 경유. ollamaHost 는 클러스터 내부 Ollama 로 변경
+# (host.k3d.internal 의존 폐기 — D2 가동 후).
 
-ollamaHost: http://host.k3d.internal:11434
+ollamaHost: http://ollama.forgenta-llm:11434
+inferenceGatewayURL: http://inference-gateway.forgenta-core:8800
 
 orchestration:
-  executorModel: ollama/granite4.1:8b   # tool-use capable, larger than 4b for executor
-  routerModel: ollama/qwen3:4b          # smallest router we have locally
+  # PRD v3.4 §3.5 기본값 — vLLM 우선, Ollama 폴백.
+  plannerModel:    vllm/qwen3-72b-instruct-nvfp4
+  executorModel:   vllm/qwen3-coder-32b-fp8
+  summarizerModel: vllm/qwen3-8b-fp8
+  routerModel:     vllm/qwen3-1.7b
+  embedModel:      vllm/bge-m3
+
+inferenceGateway:
+  enabled: true

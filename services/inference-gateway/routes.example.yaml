@@ -1,0 +1,34 @@
+# inference-gateway 라우팅 테이블 예시 — Helm 차트에서 ConfigMap 으로 마운트.
+# match 글롭은 filepath.Match 의 shell 패턴(* 만 지원).
+routes:
+  - match: "qwen3-72b-*"
+    backend: "vllm-planner"
+    fallback: ["vllm-summarizer", "ollama"]
+  - match: "qwen3-coder-32b*"
+    backend: "vllm-executor"
+    fallback: ["ollama"]
+  - match: "qwen3-1.7b*"
+    backend: "vllm-router"
+    fallback: ["ollama"]
+  - match: "qwen3-8b*"
+    backend: "vllm-summarizer"
+    fallback: ["ollama"]
+  - match: "bge-*"
+    backend: "vllm-embed"
+  - match: "ollama/*"
+    backend: "ollama"
+  - match: "claude-*"
+    backend: "external"
+    sensitive: false   # external 은 항상 ig 외부에서 처리 (orchestration-svc 직호출)
+  - match: "gpt-*"
+    backend: "external"
+  - match: "gemini-*"
+    backend: "external"
+
+backends:
+  vllm-planner:    "http://vllm-planner.forgenta-llm:8000"
+  vllm-executor:   "http://vllm-executor.forgenta-llm:8000"
+  vllm-router:     "http://vllm-router.forgenta-llm:8000"
+  vllm-summarizer: "http://vllm-summarizer.forgenta-llm:8000"
+  vllm-embed:      "http://vllm-embed.forgenta-llm:8000"
+  ollama:          "http://ollama.forgenta-llm:11434"

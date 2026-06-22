@@ -1,8 +1,11 @@
-# Forgenta 로컬 개발용 k3d 클러스터 정의 (server 1 + agent 2, loadbalancer 포트 매핑)
+# Forgenta k3d 클러스터 정의 (DGX Spark 프로필 — GPU passthrough, ARM64)
+# v3.4: server 1 + agent 2, loadbalancer 8080/8443, hostPath /var/lib/forgenta/models 마운트.
+# GPU passthrough는 CLI 플래그(`k3d cluster create --gpus all`)로 부여 — bootstrap.sh 참조.
 apiVersion: k3d.io/v1alpha5
 kind: Simple
 metadata:
   name: forgenta
+image: docker.io/rancher/k3s:v1.30.4-k3s1
 servers: 1
 agents: 2
 ports:
@@ -12,10 +15,16 @@ ports:
   - port: 8443:443
     nodeFilters:
       - loadbalancer
+volumes:
+  # 모델 가중치 영속 캐시 — vLLM/Ollama Pod가 hostPath PV로 마운트해 사용 (v3.4 §5.5)
+  - volume: /var/lib/forgenta/models:/var/lib/forgenta/models
+    nodeFilters:
+      - agent:*
+      - server:*
 options:
   k3d:
     wait: true
-    timeout: "120s"
+    timeout: "180s"
   kubeconfig:
     updateDefaultKubeconfig: true
     switchCurrentContext: true

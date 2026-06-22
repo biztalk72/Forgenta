@@ -1,0 +1,101 @@
+{{- if .Values.ollama.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.ollama.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "forgenta-llm.labels" (dict "name" .Values.ollama.name) | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.ollama.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "forgenta-llm.labels" (dict "name" .Values.ollama.name) | nindent 8 }}
+    spec:
+      {{- if .Values.priorityClass.create }}
+      priorityClassName: {{ .Values.priorityClass.name }}
+      {{- end }}
+      runtimeClassName: nvidia
+      initContainers:
+        - name: pull
+          image: {{ .Values.ollama.image }}
+          command: ["/bin/sh", "-lc"]
+          args:
+            - |
+              ollama serve &
+              SERVE_PID=$!
+              # serve 준비 대기 (최대 60초)
+              for i in $(seq 1 60); do
+                ollama list >/dev/null 2>&1 && break
+                sleep 1
+              done
+              {{- range .Values.ollama.models }}
+              ollama pull {{ . }} || echo "WARN: ollama pull {{ . }} failed (will retry on runtime)"
+              {{- end }}
+              kill $SERVE_PID 2>/dev/null || true
+              wait $SERVE_PID 2>/dev/null || true
+          env:
+            - name: OLLAMA_MODELS
+              value: /models/ollama
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      containers:
+        - name: ollama
+          image: {{ .Values.ollama.image }}
+          imagePullPolicy: {{ .Values.common.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.ollama.port }}
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0:{{ .Values.ollama.port }}"
+            - name: OLLAMA_MODELS
+              value: /models/ollama
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+      volumes:
+        - name: models
+          hostPath:
+            path: {{ .Values.modelsHostPath }}
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.ollama.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "forgenta-llm.labels" (dict "name" .Values.ollama.name) | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ .Values.ollama.name }}
+  ports:
+    - name: http
+      port: {{ .Values.ollama.port }}
+      targetPort: http
+{{- end }}
