@@ -17,7 +17,8 @@ prometheus:
   scrapeInterval: 15s
 
 # DCGM Exporter (DGX 프로필 — GPU 노드 메트릭)
+# 4.1.1+ 필수: GB10/Blackwell 데이터센터 모드 인식. 3.x는 "0 GPUs" 보고.
 dcgmExporter:
   enabled: true
-  image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.7-3.5.0-ubuntu22.04
+  image: nvcr.io/nvidia/k8s/dcgm-exporter:4.1.1-4.0.4-ubuntu22.04
   port: 9400

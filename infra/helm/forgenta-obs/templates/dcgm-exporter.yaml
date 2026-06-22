@@ -17,6 +17,7 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.dcgmExporter.port }}"
     spec:
+      runtimeClassName: nvidia            # NVIDIA Container Runtime — libnvidia-ml 주입 필수
       hostNetwork: true
       hostPID: true
       tolerations:

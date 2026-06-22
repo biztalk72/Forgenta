@@ -1,5 +1,6 @@
-# NVIDIA k8s device plugin (DaemonSet) — k3s 안에서 GPU를 nvidia.com/gpu 리소스로 노출.
-# 출처: https://github.com/NVIDIA/k8s-device-plugin (v0.16.x). vendored copy for repeatable bootstrap.
+# NVIDIA k8s device plugin (DaemonSet) — k3s/k3d 안에서 GPU를 nvidia.com/gpu 자원으로 노출.
+# v0.17.4 필수: GB10 unified memory ("Not Supported" 메모리 enum) graceful handle.
+# runtimeClassName: nvidia 필수: 컨테이너에 libnvidia-ml/libcuda 주입.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -16,13 +17,14 @@ spec:
       labels:
         name: nvidia-device-plugin-ds
     spec:
+      runtimeClassName: nvidia
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
       priorityClassName: "system-node-critical"
       containers:
-        - image: nvcr.io/nvidia/k8s-device-plugin:v0.16.2
+        - image: nvcr.io/nvidia/k8s-device-plugin:v0.17.4
           name: nvidia-device-plugin-ctr
           env:
             - name: FAIL_ON_INIT_ERROR
@@ -31,6 +33,8 @@ spec:
               value: "all"
             - name: NVIDIA_DRIVER_CAPABILITIES
               value: "compute,utility"
+            - name: PASS_DEVICE_SPECS
+              value: "true"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
