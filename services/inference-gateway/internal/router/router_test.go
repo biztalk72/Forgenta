@@ -11,6 +11,8 @@ routes:
   - match: "qwen3-72b-*"
     backend: "vllm-planner"
     fallback: ["vllm-summarizer", "ollama"]
+    fallback_rewrite:
+      ollama: "qwen3:8b"
   - match: "qwen3-coder-32b*"
     backend: "vllm-executor"
     fallback: ["ollama"]
@@ -50,6 +52,13 @@ func TestResolvePlanner(t *testing.T) {
 	}
 	if len(r.Fallback) != 2 {
 		t.Fatalf("fallback count=%d want 2", len(r.Fallback))
+	}
+	// vllm-summarizer 폴백은 rewrite 없음, ollama 폴백은 "qwen3:8b" 로 리라이트.
+	if r.Fallback[0].Backend != "vllm-summarizer" || r.Fallback[0].RewriteModel != "" {
+		t.Fatalf("fallback[0]=%+v want vllm-summarizer/no-rewrite", r.Fallback[0])
+	}
+	if r.Fallback[1].Backend != "ollama" || r.Fallback[1].RewriteModel != "qwen3:8b" {
+		t.Fatalf("fallback[1]=%+v want ollama/qwen3:8b", r.Fallback[1])
 	}
 }
 

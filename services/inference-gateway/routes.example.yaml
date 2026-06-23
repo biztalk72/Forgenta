@@ -4,15 +4,23 @@ routes:
   - match: "qwen3-72b-*"
     backend: "vllm-planner"
     fallback: ["vllm-summarizer", "ollama"]
+    fallback_rewrite:
+      ollama: "qwen3:8b"   # Ollama 는 qwen3-72b 가중치를 갖지 않으므로 폴백 시 8b 로 강등
   - match: "qwen3-coder-32b*"
     backend: "vllm-executor"
     fallback: ["ollama"]
+    fallback_rewrite:
+      ollama: "qwen3:8b"   # coder-32b 비가용 시 8b 로 강등 (코드 품질 ↓ 허용)
   - match: "qwen3-1.7b*"
     backend: "vllm-router"
     fallback: ["ollama"]
+    fallback_rewrite:
+      ollama: "qwen3:1.7b"
   - match: "qwen3-8b*"
     backend: "vllm-summarizer"
     fallback: ["ollama"]
+    fallback_rewrite:
+      ollama: "qwen3:8b"
   - match: "bge-*"
     backend: "vllm-embed"
   - match: "ollama/*"

@@ -37,12 +37,23 @@ echo "[1] gateway → identity routing"
 ME=$(curl -s "$BASE/api/identity/auth/me" -H "$AUTH" | python3 -c 'import sys,json;print(json.load(sys.stdin)["email"])')
 check "identity /auth/me" "admin@forgenta.local" "$ME"
 
-echo "[2] usage baseline → stream → usage incremented (orchestration→Ollama + metering)"
+echo "[2] usage baseline → stream → usage incremented + tokens generated (orchestration→Ollama + metering)"
 BEFORE=$(curl -s "$BASE/api/governance/v1/usage/summary" -H "$AUTH" | python3 -c 'import sys,json;print(json.load(sys.stdin)["events"])')
-curl -s --max-time 90 -N -X POST "$BASE/api/orchestration/v1/chat/stream" -H "$AUTH" \
-  -H 'Content-Type: application/json' -d '{"prompt":"Reply with exactly: ok. /no_think"}' >/dev/null
+BEFORE_TOK=$(curl -s "$BASE/api/governance/v1/usage/summary" -H "$AUTH" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("completion_tokens",0))')
+STREAM_OUT=$(curl -s --max-time 90 -N -X POST "$BASE/api/orchestration/v1/chat/stream" -H "$AUTH" \
+  -H 'Content-Type: application/json' -d '{"prompt":"Reply with exactly: ok. /no_think"}')
 AFTER=$(curl -s "$BASE/api/governance/v1/usage/summary" -H "$AUTH" | python3 -c 'import sys,json;print(json.load(sys.stdin)["events"])')
+AFTER_TOK=$(curl -s "$BASE/api/governance/v1/usage/summary" -H "$AUTH" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("completion_tokens",0))')
 check "UsageEvent recorded by stream" "$((BEFORE+1))" "$AFTER"
+# 토큰이 실제로 생성됐는지 확인 — 누적 completion_tokens 가 증가했거나, SSE 스트림에 "token" 이벤트가 포함돼야 한다.
+# (orchestration→ig→백엔드 가 silent 4xx 로 끝나는 회귀를 막는다 — 2026-06-23 발견된 ig→ollama 모델명 미스매치 케이스)
+if [ "$AFTER_TOK" -gt "$BEFORE_TOK" ] || echo "$STREAM_OUT" | grep -q '"event":"token"'; then
+  echo "  PASS stream produced tokens (tokens_before=$BEFORE_TOK tokens_after=$AFTER_TOK)"
+  pass=$((pass+1))
+else
+  echo "  FAIL stream produced no tokens (tokens_before=$BEFORE_TOK tokens_after=$AFTER_TOK) — orchestration→backend likely silently failed"
+  fail=$((fail+1))
+fi
 
 echo "[3] catalog CRUD"
 AID=$(curl -s -X POST "$BASE/api/catalog/v1/agents" -H "$AUTH" -H 'Content-Type: application/json' \

@@ -3,6 +3,7 @@ package proxy
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -47,15 +48,25 @@ func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 
 // Serve forwards request to target. Returns error if response status >= 500 (caller may try fallback).
 // 5xx 응답을 fallback 트리거로 사용하기 위해 captured copy 를 통해 재시도 가능한 형태로 호출한다.
-func Serve(w http.ResponseWriter, original *http.Request, capt *Cloneable, target *url.URL, log *slog.Logger) error {
+// rewriteModel 이 비어있지 않으면 body JSON 의 "model" 필드를 그 값으로 치환한다 (fallback 시 백엔드별 model 이름이 다를 때).
+func Serve(w http.ResponseWriter, original *http.Request, capt *Cloneable, target *url.URL, log *slog.Logger, rewriteModel string) error {
+	body := capt.Body
+	if rewriteModel != "" && len(body) > 0 {
+		if rewritten, ok := rewriteModelInBody(body, rewriteModel); ok {
+			body = rewritten
+		} else {
+			log.Warn("rewrite_model_failed", "model", rewriteModel, "backend", target.String())
+		}
+	}
+
 	// 새 요청을 만들어서 재시도 안전.
 	r2 := original.Clone(original.Context())
 	r2.URL.Scheme = target.Scheme
 	r2.URL.Host = target.Host
 	r2.Host = target.Host
 	if capt != nil {
-		r2.Body = io.NopCloser(bytes.NewReader(capt.Body))
-		r2.ContentLength = int64(len(capt.Body))
+		r2.Body = io.NopCloser(bytes.NewReader(body))
+		r2.ContentLength = int64(len(body))
 	}
 
 	rp := newReverseProxy(target)
@@ -93,4 +104,23 @@ func (e *UpstreamError) Error() string {
 func IsUpstreamFailure(err error) bool {
 	var ue *UpstreamError
 	return errors.As(err, &ue)
+}
+
+// rewriteModelInBody 는 JSON body 의 최상위 "model" 키만 새 값으로 갈아끼운다.
+// 나머지 필드 (messages, stream, …) 는 그대로 두며, 키 순서는 보장하지 않는다.
+// 파싱 실패 시 (ok=false, body unchanged) — caller 가 원본 그대로 보내도록 한다.
+func rewriteModelInBody(body []byte, newModel string) ([]byte, bool) {
+	var obj map[string]any
+	if err := json.Unmarshal(body, &obj); err != nil {
+		return body, false
+	}
+	if _, hasModel := obj["model"]; !hasModel {
+		return body, false
+	}
+	obj["model"] = newModel
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return body, false
+	}
+	return out, true
 }

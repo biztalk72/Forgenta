@@ -5,6 +5,8 @@
 //	  - match: "qwen3-72b-*"
 //	    backend: "vllm-planner"
 //	    fallback: ["vllm-summarizer", "ollama"]
+//	    fallback_rewrite:                  # 선택. fallback 백엔드별 model 이름 치환
+//	      ollama: "qwen3:8b"               # (qwen3-72b 가 vLLM 폴백→Ollama 시 ollama 가 가진 모델로 리라이트)
 //	backends:
 //	  vllm-planner:    "http://vllm-planner.forgenta-llm:8000"
 //	  vllm-summarizer: "http://vllm-summarizer.forgenta-llm:8000"
@@ -24,6 +26,9 @@ type Route struct {
 	Match    string   `yaml:"match"`              // glob 패턴 (e.g. "qwen3-72b-*")
 	Backend  string   `yaml:"backend"`            // backends 키 참조 또는 "external"
 	Fallback []string `yaml:"fallback,omitempty"` // 실패 시 시도할 백엔드 키 순서
+	// FallbackRewrite[backend-key] = model_name — fallback 백엔드로 요청을 보낼 때 body 의 "model" 필드를
+	// 해당 이름으로 치환. vLLM 이 서빙하던 model 명을 Ollama 가 모를 때 사용.
+	FallbackRewrite map[string]string `yaml:"fallback_rewrite,omitempty"`
 	// Sensitive 가 true 이면 X-Forgenta-Sensitive=true 요청만 허용해야 한다.
 	// (현재는 표시 메타로만 사용 — sensitive 거부는 server 레이어에서 backend=="external" 차단으로 처리)
 	Sensitive bool `yaml:"sensitive,omitempty"`
@@ -34,11 +39,18 @@ type Table struct {
 	Backends map[string]string `yaml:"backends"`
 }
 
+// FallbackTarget 은 fallback 체인의 한 항목 — URL 과 선택적 model 이름 치환.
+type FallbackTarget struct {
+	Backend       string   // backend key (로깅용)
+	URL           *url.URL // 호스트
+	RewriteModel  string   // 비어있지 않으면 body 의 "model" 필드를 이 값으로 치환
+}
+
 type Resolved struct {
 	Model    string
 	Backend  string   // 1차 backend key
 	URL      *url.URL // 1차 backend URL
-	Fallback []*url.URL
+	Fallback []FallbackTarget
 	External bool // backend == "external"
 }
 
@@ -105,7 +117,11 @@ func (t *Table) Resolve(model string) (*Resolved, error) {
 				continue
 			}
 			fbURL, _ := url.Parse(fbRaw)
-			res.Fallback = append(res.Fallback, fbURL)
+			res.Fallback = append(res.Fallback, FallbackTarget{
+				Backend:      fb,
+				URL:          fbURL,
+				RewriteModel: r.FallbackRewrite[fb], // 미정의면 빈 문자열 → 리라이트 없음
+			})
 		}
 		return res, nil
 	}

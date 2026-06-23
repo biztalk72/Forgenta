@@ -99,8 +99,8 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 1차 시도.
-	upErr := proxy.Serve(w, r, capt, res.URL, s.opt.Log)
+	// 1차 시도 — 1차는 model 명 그대로 (rewrite 없음).
+	upErr := proxy.Serve(w, r, capt, res.URL, s.opt.Log, "")
 	dur := time.Since(start).Seconds()
 	metrics.ObserveDuration(res.Backend, mr.Model, dur)
 	if upErr == nil {
@@ -115,11 +115,11 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		s.opt.Log.Error("proxy_terminal", "err", upErr)
 		return
 	}
-	for _, fbURL := range res.Fallback {
-		s.opt.Log.Warn("fallback_attempt", "primary", res.Backend, "fallback", fbURL.Host)
-		metrics.IncFallback(res.Backend, fbURL.Host)
-		if err := proxy.Serve(w, r, capt, fbURL, s.opt.Log); err == nil {
-			metrics.IncRequest(fbURL.Host, mr.Model, "200_fallback")
+	for _, fb := range res.Fallback {
+		s.opt.Log.Warn("fallback_attempt", "primary", res.Backend, "fallback", fb.URL.Host, "rewrite_model", fb.RewriteModel)
+		metrics.IncFallback(res.Backend, fb.URL.Host)
+		if err := proxy.Serve(w, r, capt, fb.URL, s.opt.Log, fb.RewriteModel); err == nil {
+			metrics.IncRequest(fb.URL.Host, mr.Model, "200_fallback")
 			return
 		}
 	}
