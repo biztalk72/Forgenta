@@ -168,18 +168,22 @@
       `workflow_step_run_kind_check`(llm|tool|approval|export) + `workflow_run.status`에 pending 확인.
       (부수 수정: `infra/scripts/migrate.sh`가 `"down 1"`을 단일 인자로 넘기던 버그 → 토큰 분리하도록 수정)
 
-## Phase 12 — workflow-svc + Compiler (Loop 3 확장)
-- [ ] `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`entity_type='workflow'`)
-- [ ] 내부 write API: `POST /v1/runs`, `PATCH /v1/runs/{id}`, `POST /v1/runs/{id}/steps`, `PATCH /v1/steps/{id}`
-- [ ] 게이트웨이 `/api/workflow/` 서브트리 프록시 + `WORKFLOW_URL` / go.work / Helm(`workflow.*`,8006) / `workflow-svc.yaml` / build-images.sh
-- [ ] orchestration `app/compiler.py` + `POST /v1/workflows/compile` (SSE plan/step)
-- [ ] verify: workflow CRUD + clone 계보, compile SSE steps≥2 + spec이 PRD §6.A 스키마 valid(검증 실패 시 재시도)
+## Phase 12 — workflow-svc + Compiler (Loop 3 확장) ✅
+- [x] `services/workflow-svc`(Go, catalog-svc 패턴, 8006): workflow/run CRUD + clone(`entity_type='workflow'`) (merge: main `645852f`, PR #8)
+- [x] 내부 write API: `POST /v1/runs`, `PATCH /v1/runs/{id}`, `POST /v1/runs/{id}/steps`, `PATCH /v1/steps/{id}`
+- [x] 게이트웨이 `/api/workflow/` 서브트리 프록시 + `WORKFLOW_URL` / go.work / Helm(`workflow.*`,8006) / `workflow-svc.yaml` / build-images.sh
+- [x] orchestration `app/compiler.py` + `POST /v1/workflows/compile` (SSE plan/step). compiler 단위 7건 PASS
+- [x] migration 000009: `clone_lineage.entity_type` CHECK 에 `workflow` 추가 (workflow 클론 lineage 기록 가능)
+- [x] verify ✅ (2026-06-22): workflow CRUD + clone(계보 row 작성) + compile SSE valid 2-step spec, §6.A 스키마 통과
 
 ## Phase 13 — Workflow Runtime (Loop 3/4)
-- [ ] orchestration `app/runtime.py`: 단계 실행(ModelRouter+providers.stream 재사용) + blackboard context handoff
-- [ ] `POST /v1/workflows/{id}/run`(SSE) + `POST /v1/runs/{id}/cancel`, 누적 컨텍스트 headroom 압축
-- [ ] 단계 종료마다 workflow-svc step write + governance usage 기록
-- [ ] verify: 2단계 run → step_run 2건 + context handoff + done 이벤트
+- [x] orchestration `app/runtime.py`: 단계 순차 실행 — `_parse_steps`/`_resolve_input_map`/`_build_llm_messages` + blackboard handoff(`context.<key>` 참조)
+- [x] `POST /v1/workflows/{id}/run` SSE — `run.started → (step.started → token* → step.done)+ → run.done`. Cancel 은 후속 (long-poll Cancel 미구현)
+- [x] 단계별 workflow-svc write: `POST /v1/runs` → `POST /v1/runs/{id}/steps` → `PATCH /v1/steps/{id}` (best-effort, 실패해도 진행)
+- [x] governance `record_usage` 단계별 호출. config.WORKFLOW_URL + 게이트웨이 `POST /api/orchestration/v1/workflows/{id}/run` 라우트 추가
+- [x] approval 단계: `awaiting_approval` SSE emit 후 중단 (Phase 14 가 row 작성/resume 책임)
+- [x] runtime_test 6/6 PASS (parse 정렬·기본값·input_map 해석·prompt build·truncate)
+- [ ] in-cluster verify: 2단계 run → step_run 2건 + context handoff + done 이벤트 (orchestration-svc + api-gateway 이미지 재빌드 후 — sudo 필요)
 
 ## Phase 14 — 단계 승인 HITL (Loop 3e/4)
 - [ ] governance approval 재사용(`resource_type='workflow_step_run'`) + audit 컨텍스트

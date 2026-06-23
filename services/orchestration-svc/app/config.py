@@ -24,6 +24,8 @@ class Config:
     # 사이드카
     headroom_url: str
     governance_url: str
+    # v3 Workflow Fabric (Phase 13) — workflow-svc 의 내부 write API (run/step 기록 + spec 조회).
+    workflow_url: str
     headroom_enabled: bool
 
 
@@ -43,5 +45,6 @@ def load() -> Config:
         openai_key=os.getenv("OPENAI_API_KEY", ""),
         headroom_url=os.getenv("HEADROOM_PROXY_URL", "http://localhost:8787"),
         governance_url=os.getenv("GOVERNANCE_URL", "http://localhost:8005"),
+        workflow_url=os.getenv("WORKFLOW_URL", "http://localhost:8006"),
         headroom_enabled=os.getenv("HEADROOM_ENABLED", "true").lower() == "true",
     )

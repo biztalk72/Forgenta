@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import config, integrations, compiler
+from . import config, integrations, compiler, runtime
 from .graph import build_graph
 from .providers import stream
 from .router import ModelRouter, RouteRequest
@@ -171,5 +171,37 @@ async def workflows_compile(req: CompileRequest):
             yield _sse("step", {"seq": st.get("seq"), "kind": st.get("kind"), "name": st.get("name")})
         log("workflow_compile", steps=len(spec.get("steps", [])), valid=err is None, fallback=fb)
         yield _sse("done", {"spec": spec, "valid": err is None, "error": err, "fallback": fb})
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+class RunRequest(BaseModel):
+    routing: dict = {}
+    initial_context: dict = {}
+    trigger: str = "manual"
+
+
+@app.post("/v1/workflows/{workflow_id}/run")
+async def workflow_run(workflow_id: str, req: RunRequest, request: Request):
+    # workflow.spec(§6.A) 의 단계를 순차 실행 — SSE: run.started → step.* → run.done
+    ws = request.headers.get("X-Workspace-Id", "")
+    user = request.headers.get("X-User-Id", "")
+    chain = model_router.route(RouteRequest(**req.routing))
+
+    async def gen() -> AsyncIterator[str]:
+        spec = await runtime.fetch_spec(cfg, workflow_id, ws, user)
+        if spec is None:
+            yield _sse("error", {"reason": "workflow not found or workflow-svc unavailable"})
+            return
+        async for ev in runtime.run_workflow(
+            cfg,
+            workflow_id=workflow_id, spec=spec,
+            ws=ws, user=user,
+            routing=req.routing, chain=chain,
+            initial_context=req.initial_context,
+            record_usage_fn=integrations.record_usage,
+            log_fn=log,
+        ):
+            yield ev
 
     return StreamingResponse(gen(), media_type="text/event-stream")
