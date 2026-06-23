@@ -220,14 +220,16 @@ func (s *Server) listRuns(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// getRun은 런 상세 + 스텝 타임라인을 반환한다.
+// getRun은 런 상세 + 스텝 타임라인을 반환한다. workflow_id 와 step.approval_id 는
+// resume 경로(Phase 14)에서 orchestration 이 spec/blackboard/approval 결정을 끌어오는 데 필요.
 func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	runID := r.PathValue("id")
-	var status, trig, summary string
+	var status, trig, summary, workflowID string
 	var ctx json.RawMessage
 	err := s.Pool.QueryRow(r.Context(),
-		`SELECT status, trigger, coalesce(summary,''), context FROM workflow_run WHERE id=$1 AND workspace_id=$2`,
-		runID, wsID(r)).Scan(&status, &trig, &summary, &ctx)
+		`SELECT workflow_id::text, status, trigger, coalesce(summary,''), context
+		   FROM workflow_run WHERE id=$1 AND workspace_id=$2`,
+		runID, wsID(r)).Scan(&workflowID, &status, &trig, &summary, &ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		httperr.Write(w, http.StatusNotFound, "not found")
 		return
@@ -237,17 +239,27 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, _ := s.Pool.Query(r.Context(),
-		`SELECT step_seq, kind, status, coalesce(error,''), prompt_tokens, completion_tokens, latency_ms
+		`SELECT id::text, step_seq, kind, status, coalesce(error,''),
+		        coalesce(approval_id::text,''),
+		        prompt_tokens, completion_tokens, latency_ms
 		   FROM workflow_step_run WHERE run_id=$1 ORDER BY step_seq`, runID)
 	defer rows.Close()
 	steps := []map[string]any{}
 	for rows.Next() {
+		var id, kind, st, errMsg, approvalID string
 		var seq, pt, ctk, lat int
-		var kind, st, errMsg string
-		_ = rows.Scan(&seq, &kind, &st, &errMsg, &pt, &ctk, &lat)
-		steps = append(steps, map[string]any{"step_seq": seq, "kind": kind, "status": st, "error": errMsg, "prompt_tokens": pt, "completion_tokens": ctk, "latency_ms": lat})
+		_ = rows.Scan(&id, &seq, &kind, &st, &errMsg, &approvalID, &pt, &ctk, &lat)
+		steps = append(steps, map[string]any{
+			"id": id, "step_seq": seq, "kind": kind, "status": st,
+			"error": errMsg, "approval_id": approvalID,
+			"prompt_tokens": pt, "completion_tokens": ctk, "latency_ms": lat,
+		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": runID, "status": status, "trigger": trig, "summary": summary, "context": ctx, "steps": steps})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id": runID, "workflow_id": workflowID,
+		"status": status, "trigger": trig, "summary": summary,
+		"context": ctx, "steps": steps,
+	})
 }
 
 // ── 내부 write API (orchestration runtime, Phase 13에서 사용) ──

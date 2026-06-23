@@ -205,3 +205,29 @@ async def workflow_run(workflow_id: str, req: RunRequest, request: Request):
             yield ev
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+class ResumeRequest(BaseModel):
+    routing: dict = {}
+
+
+@app.post("/v1/workflows/runs/{run_id}/resume")
+async def workflow_resume(run_id: str, req: ResumeRequest, request: Request):
+    # Phase 14: governance approval 결정(approved/rejected/pending) 을 읽고 awaiting run 을 재개/halt.
+    # SSE: run.resumed → (approved: step.* → run.done) | (rejected: run.done(cancelled))
+    ws = request.headers.get("X-Workspace-Id", "")
+    user = request.headers.get("X-User-Id", "")
+    chain = model_router.route(RouteRequest(**req.routing))
+
+    async def gen() -> AsyncIterator[str]:
+        async for ev in runtime.resume_workflow(
+            cfg,
+            run_id=run_id,
+            ws=ws, user=user,
+            routing=req.routing, chain=chain,
+            record_usage_fn=integrations.record_usage,
+            log_fn=log,
+        ):
+            yield ev
+
+    return StreamingResponse(gen(), media_type="text/event-stream")

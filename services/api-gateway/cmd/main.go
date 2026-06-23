@@ -60,6 +60,8 @@ func main() {
 	mux.Handle("POST /api/orchestration/v1/workflows/compile", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
 	// v3 Phase 13: 워크플로우 런타임(SSE) — orchestration 이 step 별로 workflow-svc write API 호출.
 	mux.Handle("POST /api/orchestration/v1/workflows/{id}/run", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
+	// v3 Phase 14: approval 결정 후 awaiting run 재개(SSE) — orchestration 이 governance approval 결정을 읽고 다음 단계 실행.
+	mux.Handle("POST /api/orchestration/v1/workflows/runs/{id}/resume", middleware.Auth(cfg.JWTSecret, orchestrationProxy))
 
 	// Catalog/Artifact/Governance/Workflow: 서브트리 전체를 JWT 보호 후 프록시 (모든 메서드)
 	mux.Handle("/api/catalog/", middleware.Auth(cfg.JWTSecret, stripProxy("/api/catalog", cfg.CatalogURL, log)))

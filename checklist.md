@@ -187,12 +187,18 @@
       blackboard handoff (`context_keys=["greeting","bye"]`, step2 가 step1 출력 참조) + `run.done status=succeeded`.
       부수 발견: status enum 미스매치 — runtime 이 `completed` 를 보내면 schema CHECK(`succeeded|...`) 가 거부 → `succeeded` 로 수정
 
-## Phase 14 — 단계 승인 HITL (Loop 3e/4)
-- [ ] governance approval 재사용(`resource_type='workflow_step_run'`) + audit 컨텍스트
-- [ ] `awaiting_approval` 정지 → `POST /v1/runs/{id}/resume` 재개 / reject halt
-- [ ] 프론트 `/workflows`+`/runs`(검색·compile·타임라인·live SSE·approve/reject/resume), `lib/stream` 확장
-- [ ] DESIGN.md 준수(Mantine 재사용): light/dark 토글·semantic token, 반응형 375/768/1024/1440, 모션 150~320ms, WebGL enhancement-only, 접근성 floor(focus/keyboard/reduced-motion). CLAUDE.md §3.5
-- [ ] verify: approval 생성/정지 → approve resume, reject halt + integration/e2e 워크플로우 플로우 추가
+## Phase 14 — 단계 승인 HITL (Loop 3e/4) ✅
+- [x] runtime `app/runtime.py`: approval 단계에서 `workflow_step_run`(status=awaiting_approval) + governance `approval`(resource_type='workflow_step_run', resource_id=step_run.id) 작성 후 정지 + audit 자동 기록
+- [x] `POST /v1/workflows/runs/{run_id}/resume` SSE: `run.resumed(decision)` → (approved: step.* → run.done(succeeded)) | (rejected: run.done(cancelled, reason="approval rejected"))
+- [x] workflow-svc `getRun` 확장: `workflow_id` + per-step `id` / `approval_id` (resume 가 awaiting step 식별)
+- [x] 게이트웨이 `POST /api/orchestration/v1/workflows/runs/{id}/resume` 라우트 추가
+- [x] 프론트 `/workflows` + `/runs/:runId` (Mantine): 목록·검색·NL 컴파일(SSE)·저장·실행, 런 타임라인·blackboard 표시·approve/reject 버튼·resume SSE 라이브. `lib/stream.ts` 에 범용 `streamSse(path,body)` 추가
+- [x] DESIGN.md §3.5 준수: Mantine 재사용(light/dark 자동, semantic token, 모션 Mantine 기본 150~320ms, 접근성 floor 유지)
+- [x] runtime_test 10/10 PASS — 신규: `run_workflow_creates_approval_and_stops` / `resume_rejected_halts_run` / `resume_approved_continues_remaining_steps` / `resume_pending_returns_awaiting` (respx HTTP 모킹)
+- [x] in-cluster verify ✅ (2026-06-23): 3-step(tool→approval→tool) 워크플로우 2회 실행 —
+      (a) approve: `run.done(succeeded)`, step#2 succeeded + step#3 생성/실행(`blackboard handoff context.draft`),
+      (b) reject: `run.done(cancelled, reason="approval rejected")`, step#2 failed + step#3 **미생성**.
+      governance approval row(`resource_type=workflow_step_run`, resource_id=step_run.id) 자동 생성/결정/감사 확인.
 
 ## Phase 15~17 — 후속 증분 (MVP 이후)
 - [ ] Phase 15 — Connectors + 외부 산출: `connector`(`gworkspace`/`gmail`/`outlook`/`browser`=Playwright MCP/HTTP/MCP, `secret_ref`) + OAuth 최소 스코프(drive.file/gmail.send/Mail.Send). Output/Export 노드(`POST /v1/runs/{id}/export` → Docs/Sheets/Slides/Drive·메일, `external_file_ref`/audit). 입력 트리거: Gmail/Outlook 신규 메일. 착수순서 Google→메일→Playwright MCP(도메인 allowlist+격리). (Obsidian은 v3.3에서 제외)

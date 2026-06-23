@@ -6,6 +6,7 @@ import { clearToken } from '../stores/auth'
 const NAV = [
   { label: 'Dashboard', to: '/' },
   { label: 'Catalog', to: '/catalog' },
+  { label: 'Workflows', to: '/workflows' },
   { label: 'Admin', to: '/admin' },
 ]
 

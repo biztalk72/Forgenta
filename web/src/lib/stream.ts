@@ -44,6 +44,38 @@ export async function* streamChat(
   }
 }
 
+// 범용 SSE-over-fetch — workflow compile/run/resume 등 다른 SSE 엔드포인트에서 재사용.
+export async function* streamSse(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): AsyncGenerator<SseEvent> {
+  const resp = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken() ?? ''}`,
+    },
+    body: JSON.stringify(body),
+    signal,
+  })
+  if (!resp.ok || !resp.body) throw new Error(`stream ${path} → ${resp.status}`)
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    const blocks = buf.split('\n\n')
+    buf = blocks.pop() ?? ''
+    for (const block of blocks) {
+      const ev = parseBlock(block)
+      if (ev) yield ev
+    }
+  }
+}
+
 function parseBlock(block: string): SseEvent | null {
   let event = 'message'
   let data = ''
