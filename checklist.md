@@ -183,7 +183,9 @@
 - [x] governance `record_usage` 단계별 호출. config.WORKFLOW_URL + 게이트웨이 `POST /api/orchestration/v1/workflows/{id}/run` 라우트 추가
 - [x] approval 단계: `awaiting_approval` SSE emit 후 중단 (Phase 14 가 row 작성/resume 책임)
 - [x] runtime_test 6/6 PASS (parse 정렬·기본값·input_map 해석·prompt build·truncate)
-- [ ] in-cluster verify: 2단계 run → step_run 2건 + context handoff + done 이벤트 (orchestration-svc + api-gateway 이미지 재빌드 후 — sudo 필요)
+- [x] in-cluster verify ✅ (2026-06-23): 2-step run → `workflow_step_run` 2건 (status=succeeded, tokens=9+13, latency 측정) +
+      blackboard handoff (`context_keys=["greeting","bye"]`, step2 가 step1 출력 참조) + `run.done status=succeeded`.
+      부수 발견: status enum 미스매치 — runtime 이 `completed` 를 보내면 schema CHECK(`succeeded|...`) 가 거부 → `succeeded` 로 수정
 
 ## Phase 14 — 단계 승인 HITL (Loop 3e/4)
 - [ ] governance approval 재사용(`resource_type='workflow_step_run'`) + audit 컨텍스트

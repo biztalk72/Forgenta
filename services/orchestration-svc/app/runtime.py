@@ -227,9 +227,9 @@ async def run_workflow(
             key = step.output_key or f"step_{step.seq}"
             blackboard[key] = output_text
 
-            # step_run 마무리
+            # step_run 마무리 — workflow_step_run.status CHECK 는 succeeded/failed/skipped/...
             patch_body = {
-                "status": "completed" if err is None else "failed",
+                "status": "succeeded" if err is None else "failed",
                 "error": err or "",
                 "prompt_tokens": sum(len(v) // 4 for v in inputs.values()),
                 "completion_tokens": max(1, len(output_text) // 4) if output_text else 0,
@@ -269,9 +269,9 @@ async def run_workflow(
                 terminated_reason = f"step {step.seq} failed: {err}"
                 break
 
-        # 3) workflow_run finalize
+        # 3) workflow_run finalize — workflow_run.status CHECK 는 succeeded/failed/cancelled/...
         final_status = "awaiting_approval" if terminated_reason == "awaiting_approval" \
-            else ("failed" if terminated_reason else "completed")
+            else ("failed" if terminated_reason else "succeeded")
         finished = final_status != "awaiting_approval"
         await _patch(wfclient, f"{cfg.workflow_url}/v1/runs/{run_id}",
                      {"status": final_status,
