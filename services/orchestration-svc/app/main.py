@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import config, integrations, compiler
+from . import config, integrations, compiler, runtime
 from .graph import build_graph
 from .providers import stream
 from .router import ModelRouter, RouteRequest
@@ -140,3 +140,29 @@ async def workflows_compile(req: CompileRequest):
         yield _sse("done", {"spec": spec, "valid": err is None, "error": err, "fallback": fb})
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+class RunRequest(BaseModel):
+    input: str = ""
+    routing: dict = {}
+
+
+@app.post("/v1/workflows/{workflow_id}/run")
+async def workflow_run(workflow_id: str, req: RunRequest, request: Request):
+    # spec steps 실행. SSE: meta/step_start/token/handoff/step_done/fallback/done
+    ws = request.headers.get("X-Workspace-Id", "")
+    user = request.headers.get("X-User-Id", "")
+
+    async def gen() -> AsyncIterator[str]:
+        async for event, data in runtime.run_workflow(cfg, model_router, ws, user, workflow_id, req.input, req.routing):
+            yield _sse(event, data)
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.post("/v1/runs/{run_id}/cancel")
+async def run_cancel(run_id: str, request: Request):
+    ws = request.headers.get("X-Workspace-Id", "")
+    user = request.headers.get("X-User-Id", "")
+    await integrations.patch_run(cfg, ws, user, run_id, {"status": "cancelled", "finished": True})
+    return {"run_id": run_id, "status": "cancelled"}

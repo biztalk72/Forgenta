@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-19",
+  "scope": "static checks; not full build or tests",
+  "results": [
+    {
+      "path": "services/orchestration-svc/app/__init__.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/compiler.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/config.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/graph.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/integrations.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/main.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/providers.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/router.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/app/runtime.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/pyproject.toml",
+      "check": "TOML manifest parse",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/tests/test_compiler.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "services/orchestration-svc/tests/test_router.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "web/package.json",
+      "check": "JSON manifest parse",
+      "status": "pass"
+    }
+  ]
+}
